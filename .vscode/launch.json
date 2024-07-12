@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+      {
+          "name": "Custom PLAMS Debug",
+          "type": "python",
+          "request": "launch",
+          "program": "/Applications/AMS2024.102.app/Contents/Resources/amshome/bin/plams",
+          "args": [],
+          "cwd": "${workspaceFolder}",
+          "env": {},
+          "envFile": "${workspaceFolder}/.env",
+          "console": "integratedTerminal"
+      }
+  ]
+}
