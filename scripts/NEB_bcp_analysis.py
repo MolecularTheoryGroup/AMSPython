@@ -29,12 +29,12 @@ from datetime import datetime
 
 # Define the path to the AMS job file
 ams_job_paths = [
-    "/Users/haiiro/NoSync/AMSPython/data/Full_reaction/Cys_propane_NEB_p01.ams"
+    "/Users/haiiro/Dropbox/AMSPythonData/Full_reaction/Cys_propane_NEB_p01.ams"
 ]
 # To rerun on a previously processed file, set the restart_dill_path to the path of the dill file in the
 # working directory of the previous run. Otherwise, set to None, False, or ''.
 restart_dill_paths = [
-    "/Users/haiiro/NoSync/AMSPython/scripts/plams_workdir.012/Cys_propane_NEB_p01/Cys_propane_NEB_p01.dill"
+    "/Users/haiiro/Dropbox/AMSPythonData/workspaces/plams_workdir.012/Cys_propane_NEB_p01/Cys_propane_NEB_p01.dill"
 ]
 
 # Define atom pairs (pairs of atom numbers) for which to extract bond critical point information.
@@ -429,7 +429,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir):
             for eef in eef_types:
                 log_print(f"Plotting {y_prop}{eef} vs {x_prop} for bond CPs")
                 fig, ax = plt.subplots()
-                ax.set_title(f"{job_name}: {y_prop}{eef} vs {x_prop} for bond CPs", fontsize=10)
+                ax.set_title(f"{job_name}: {y_prop}{eef} vs {x_prop} for bond CPs", fontsize=9)
                 ax.set_xlabel(x_prop)
                 ax.set_ylabel(y_prop)
                 for bcp, bcp_props in bcp_prop_dict.items():
@@ -453,9 +453,11 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir):
                         plt.close()
                         break
                 if ax:
-                    ax.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
+                    ax.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=7)
                     plt.subplots_adjust(right=0.75)
                     ax.grid(True)
+                    # tight layout
+                    plt.tight_layout()
                     plt.savefig(os.path.join(out_dir, f"{job_name}{y_prop}{eef}_vs_{x_prop}.png"))
                     plt.close()
 
@@ -470,7 +472,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir):
             if has_eef:
                 log_print(f"Plotting {y_prop} vs {x_prop} for bond CPs (All EEF)")
                 fig, ax = plt.subplots()
-                ax.set_title(f"{job_name}: {y_prop} vs {x_prop} for bond CPs (All EEF)", fontsize=10)
+                ax.set_title(f"{job_name}: {y_prop} vs {x_prop} for bond CPs (All EEF)", fontsize=9)
                 ax.set_xlabel(x_prop)
                 ax.set_ylabel(y_prop)
                 for bcp, bcp_props in bcp_prop_dict.items():
@@ -496,7 +498,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir):
                             plt.close()
                             break
                 if ax:
-                    ax.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=8)
+                    ax.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=7)
                     plt.subplots_adjust(right=0.75)
                     ax.grid(True)
                     plt.savefig(os.path.join(out_dir, f"{job_name}{y_prop}_vs_{x_prop}_all_eef.png"))
