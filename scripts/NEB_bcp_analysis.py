@@ -29,13 +29,13 @@ from datetime import datetime
 
 # Define the path to the AMS job file
 ams_job_paths = [
-    "/Users/haiiro/Dropbox/AMSPythonData/Full_reaction/Cys_propane_NEB_p01.ams"
+    "/Users/haiiro/Library/CloudStorage/Dropbox/AMSPythonData/cys_NEB_p01_nearTS/Cys_propane_near_TS_p01.ams"
 ]
 # To rerun on a previously processed file, set the restart_dill_path to the path of the dill file in the
 # working directory of the previous run. Otherwise, set to None, False, or ''.
-restart_dill_paths = [
-    "/Users/haiiro/Dropbox/AMSPythonData/workspaces/plams_workdir.012/Cys_propane_NEB_p01/Cys_propane_NEB_p01.dill"
-]
+restart_dill_paths = None #[
+#     "/Users/haiiro/Dropbox/AMSPythonData/workspaces/plams_workdir.012/Cys_propane_NEB_p01/Cys_propane_NEB_p01.dill"
+# ]
 
 # Define atom pairs (pairs of atom numbers) for which to extract bond critical point information.
 # One list for each input file defined above
@@ -67,7 +67,7 @@ user_eef = None
 # and create additional images between it and the adjacent images, using a linear interpolation of the
 # coordinates of the adjacent images. Here, you specify how many extra images to add on *each* side of the TS image.
 # Set to 0 to disable this feature.
-num_extra_images = 10
+num_extra_images = 0
 
 # Now define the x and y properties for generated plots:
 
@@ -750,4 +750,4 @@ if restart_dill_paths and len(restart_dill_paths) > 0:
         test_post_processing_multiple_jobs(restart_dill_path, atom_pairs, unrestricted=True)
 else:
     for job_path, atom_pairs in zip(ams_job_paths, atom_pairs_list):
-        main(job_path)
+        main(job_path, atom_pairs)
