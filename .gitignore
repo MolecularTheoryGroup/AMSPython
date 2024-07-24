@@ -3,3 +3,10 @@
 */.DS_Store
 **/.DS_Store
 
+plams_workdir*
+*/plams_workdir*
+**/plams_workdir*
+
+logfile
+*/logfile
+**/logfile

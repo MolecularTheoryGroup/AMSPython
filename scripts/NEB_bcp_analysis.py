@@ -2,10 +2,11 @@
 import os
 import csv
 import subprocess
-from math import sqrt, atan, floor
+from math import sqrt, atan, floor, ceil
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 
 # This script is intended to be run on the results of a NEB calculation in AMS.
 # The script will create a series of single-point calculations for each image in the NEB calculation,
@@ -33,9 +34,9 @@ ams_job_paths = [
 ]
 # To rerun on a previously processed file, set the restart_dill_path to the path of the dill file in the
 # working directory of the previous run. Otherwise, set to None, False, or ''.
-restart_dill_paths = None #[
-#     "/Users/haiiro/Dropbox/AMSPythonData/workspaces/plams_workdir.012/Cys_propane_NEB_p01/Cys_propane_NEB_p01.dill"
-# ]
+restart_dill_paths = [
+    "/Users/haiiro/Dropbox/AMSPythonData/workspaces/plams_workdir.012/Cys_propane_NEB_p01/Cys_propane_NEB_p01.dill"
+]
 
 # Define atom pairs (pairs of atom numbers) for which to extract bond critical point information.
 # One list for each input file defined above
@@ -106,11 +107,20 @@ check_point_grid_extent_fraction = 0.02
 # new jobs they need to be V/Angstrom. The conversion factor is 51.4220861908324.
 eef_conversion_factor = 51.4220861908324
 
+##### densf grid settings #####
+
+densf_bb_atom_numbers = [47, 40, 39, 1]
+densf_bb_padding = 5.0  # Angstroms
+densf_bb_spacing = 0.05  # Angstroms (densf "fine" is 0.05, "medium" is 0.1, "coarse" is 0.2)
+
 ########################################################################################
 # END OF USER SETTINGS
 ########################################################################################
 
 num_check_points_total = num_check_points**3
+
+# Get the number of CPU cores
+num_cores = ceil(os.cpu_count() / 2)
 
 ########################################################################################
 # Step 0: define helper functions
@@ -305,8 +315,8 @@ def get_bcp_properties(job, atom_pairs, unrestricted=False):
         densf_kf = None
         if os.path.exists(out_file):
             densf_kf = KFFile(out_file)
-            grad_x = densf_kf[('x values',f'x values')]
-            if len(grad_x) == num_check_points_total * len(cp_indices):
+            vals = densf_kf[('x values',f'x values')]
+            if len(vals) == num_check_points_total * len(cp_indices):
                 log_print(f"Skipping densf run for {job.name} CPs")
             else:
                 os.remove(out_file)
@@ -319,14 +329,14 @@ def get_bcp_properties(job, atom_pairs, unrestricted=False):
             densf_run_file = os.path.join(in_file_dir, "densf.run")
             with open(densf_run_file, "w") as file:
                 densf_content = f"""ADFFILE {in_file}
-    OUTPUTFILE {out_file}
-    {grid_block}
-    UNITS
-        Length bohr
-    END
-    Density scf
-    DenGrad
-    DenHess"""
+OUTPUTFILE {out_file}
+{grid_block}
+UNITS
+    Length bohr
+END
+Density scf
+DenGrad
+DenHess"""
                 file.write(densf_content)
             
             # Step 5: Construct the command to run densf
@@ -388,6 +398,73 @@ def get_bcp_properties(job, atom_pairs, unrestricted=False):
                 get_saddle_t41_properties(out_cp_data, i, out_cp_data_cp_inds[i], field)
     
     return out_cp_data
+
+def generate_full_t41(job, output_dir):
+    # Create bounding box for densf grid.
+    # Start by getting min/max coordinates of the specified atoms.
+    out_mol = job.results.get_main_molecule()
+    min_xyz = [min([getattr(out_mol.atoms[i-1], d) for i in densf_bb_atom_numbers]) for d in ['x', 'y', 'z']]
+    max_xyz = [max([getattr(out_mol.atoms[i-1], d) for i in densf_bb_atom_numbers]) for d in ['x', 'y', 'z']]
+    # Add padding to the bounding box
+    min_xyz = [min_xyz[i] - densf_bb_padding for i in range(3)]
+    max_xyz = [max_xyz[i] + densf_bb_padding for i in range(3)]
+    # compute number of points in each dimension based on the spacing
+    num_points = [int((max_xyz[i] - min_xyz[i]) / densf_bb_spacing) for i in range(3)]
+    total_num_points = num_points[0] * num_points[1] * num_points[2]
+    outfile = os.path.join(output_dir, f"{job.name}_densf_full.t41")
+    
+    # If outfile is present and it contains the correct number of points, skip the densf run
+    densf_kf = None
+    if os.path.exists(outfile):
+        densf_kf = KFFile(outfile)
+        vals = densf_kf[('x values',f'x values')]
+        if len(vals) == total_num_points:
+            log_print(f"Skipping densf run for {job.name} full density")
+        else:
+            log_print(f"Deleting {outfile} and rerunning densf for {job.name} full density")
+            os.remove(outfile)
+            densf_kf = None
+    
+    if densf_kf is None:
+        # asjust spacing to make sure we start and end at the min and max coordinates
+        spacing = (max_xyz[0] - min_xyz[0]) / num_points[0]
+        # create grid specification for padded, bounding box
+        # Grid save
+        #     x0 y0 z0
+        #     n1 [n2 [n3]]
+        #     v1x v1y v1z length1
+        #     [v2x v2y v2z length2]
+        #     [v3x v3y v3z length3]
+        # END
+        grid_str = f"""Grid Save
+    {min_xyz[0]:.6f} {min_xyz[1]:.6f} {min_xyz[2]:.6f}
+    {num_points[0]} {num_points[1]} {num_points[2]}
+    {densf_bb_spacing:.6f} 0.0 0.0 {spacing * num_points[0]:.6f}
+    0.0 {densf_bb_spacing:.6f} 0.0 {spacing * num_points[1]:.6f}
+    0.0 0.0 {densf_bb_spacing:.6f} {spacing * num_points[2]:.6f}
+END"""
+        densf_str = f"""ADFFILE {job.results['adf.rkf']}
+OUTPUTFILE {outfile}
+{grid_str}
+UNITS
+    Length angstrom
+END
+Density scf
+KinDens scf"""
+        densf_run_file = os.path.join(output_dir, f"{job.name}_densf_full.run")
+        densf_log_file = os.path.join(output_dir, f"{job.name}_densf.log")
+        with open(densf_run_file, "w") as file:
+            file.write(densf_str)
+        densf_command = f"$AMSBIN/densf < {densf_run_file}"
+        log_print(f"Running densf for {job.name} full density")
+        with open(densf_log_file, "a") as log_file:
+            densf_out = subprocess.run(densf_command, shell=True, stdout=log_file, stderr=subprocess.STDOUT, text=True, bufsize=1)
+        if densf_out.returncode != 0:
+            log_print(f"Error running densf: {densf_out.stderr}")
+        else:
+            log_print(f"Finished densf for {job.name} full density")
+            os.remove(densf_run_file)
+    
 
 def generate_plots(cp_data, prop_list, x_prop_list, out_dir):
     # Ensure the output directory exists
@@ -718,16 +795,36 @@ def main(ams_job_path, atom_pairs):
     
     process_results(jobs, atom_pairs, ams_job_path, plot_y_prop_list, plot_x_prop_list, unrestricted=is_unrestricted)
 
+
+def bcp_func_wrapper(args):
+    job, atom_pairs, unrestricted = args
+    return get_bcp_properties(job, atom_pairs, unrestricted=unrestricted)
+def densf_func_wrapper(args):
+    job, path = args
+    return generate_full_t41(job, path)
+
 def process_results(jobs, atom_pairs, path, prop_list, x_prop_list, unrestricted=False):
     ########################################################################################
     # Step 3: extract bond critical point information from each job's output
     ########################################################################################
 
     # We'll save results to a single CSV file in the results_dir
-    total_cp_data = []
-    for job in jobs.children:
-        cp_data = get_bcp_properties(job, atom_pairs, unrestricted=unrestricted)
-        total_cp_data.extend(cp_data)
+    with ThreadPoolExecutor(max_workers=num_cores) as executor:
+        args = [(job, atom_pairs, unrestricted) for job in jobs.children]
+        total_cp_data = list(executor.map(bcp_func_wrapper, args))
+
+    if len(densf_bb_atom_numbers) > 0:
+        with ThreadPoolExecutor(max_workers=num_cores) as executor:
+            args = [(job, os.path.dirname(path)) for job in jobs.children]
+            list(executor.map(densf_func_wrapper, args))
+    
+    # total_cp_data = []
+    # for job in jobs.children:
+    #     cp_data = get_bcp_properties(job, atom_pairs, unrestricted=unrestricted)
+    #     total_cp_data.extend(cp_data)
+    #     if len(densf_bb_atom_numbers) > 0:
+            
+    #         generate_full_t41(job, os.path.dirname(path))
 
     write_csv(total_cp_data, path)
     
@@ -745,9 +842,14 @@ def test_post_processing_multiple_jobs(dill_path, atom_pairs, unrestricted=False
     process_results(jobs, atom_pairs, dill_path, plot_y_prop_list, plot_x_prop_list, unrestricted=unrestricted)
     return
 
-if restart_dill_paths and len(restart_dill_paths) > 0:
-    for restart_dill_path, atom_pairs in zip(restart_dill_paths, atom_pairs_list):
-        test_post_processing_multiple_jobs(restart_dill_path, atom_pairs, unrestricted=True)
-else:
-    for job_path, atom_pairs in zip(ams_job_paths, atom_pairs_list):
-        main(job_path, atom_pairs)
+
+def main():
+    if restart_dill_paths and len(restart_dill_paths) > 0:
+        for restart_dill_path, atom_pairs in zip(restart_dill_paths, atom_pairs_list):
+            test_post_processing_multiple_jobs(restart_dill_path, atom_pairs, unrestricted=True)
+    else:
+        for job_path, atom_pairs in zip(ams_job_paths, atom_pairs_list):
+            main(job_path, atom_pairs)
+            
+if __name__ == "__main__":
+    main()
