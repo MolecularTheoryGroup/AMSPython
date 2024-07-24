@@ -843,13 +843,10 @@ def test_post_processing_multiple_jobs(dill_path, atom_pairs, unrestricted=False
     return
 
 
-def main():
+if __name__ == "__main__":
     if restart_dill_paths and len(restart_dill_paths) > 0:
         for restart_dill_path, atom_pairs in zip(restart_dill_paths, atom_pairs_list):
             test_post_processing_multiple_jobs(restart_dill_path, atom_pairs, unrestricted=True)
     else:
         for job_path, atom_pairs in zip(ams_job_paths, atom_pairs_list):
             main(job_path, atom_pairs)
-            
-if __name__ == "__main__":
-    main()
