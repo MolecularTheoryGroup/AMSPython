@@ -813,22 +813,14 @@ def process_results(jobs, atom_pairs, path, prop_list, x_prop_list, unrestricted
         args = [(job, atom_pairs, unrestricted) for job in jobs.children]
         total_cp_data = list(executor.map(bcp_func_wrapper, args))
 
+    write_csv(total_cp_data, path)
+    
+    generate_plots(total_cp_data, prop_list, x_prop_list, os.path.dirname(path))
+    
     if len(densf_bb_atom_numbers) > 0:
         with ThreadPoolExecutor(max_workers=num_cores) as executor:
             args = [(job, os.path.dirname(path)) for job in jobs.children]
             list(executor.map(densf_func_wrapper, args))
-    
-    # total_cp_data = []
-    # for job in jobs.children:
-    #     cp_data = get_bcp_properties(job, atom_pairs, unrestricted=unrestricted)
-    #     total_cp_data.extend(cp_data)
-    #     if len(densf_bb_atom_numbers) > 0:
-            
-    #         generate_full_t41(job, os.path.dirname(path))
-
-    write_csv(total_cp_data, path)
-    
-    generate_plots(total_cp_data, prop_list, x_prop_list, os.path.dirname(path))
 
 def test_post_processing_single_job(job_path, atom_pairs):
     input_job = AMSJob.load_external(job_path)
