@@ -30,12 +30,12 @@ from concurrent.futures import ThreadPoolExecutor
 
 # Define the path to the AMS job file
 ams_job_paths = [
-    "/Users/haiiro/Library/CloudStorage/Dropbox/AMSPythonData/cys_NEB_p01_nearTS/Cys_propane_near_TS_p01.ams"
+    "/Users/haiiro/Dropbox/AMSPythonData/Cys_near_TS_NEB_NF/Cys_propane_near_TS.ams"
 ]
 # To rerun on a previously processed file, set the restart_dill_path to the path of the dill file in the
 # working directory of the previous run. Otherwise, set to None, False, or ''.
 restart_dill_paths = [
-    "/Users/haiiro/Dropbox/AMSPythonData/workspaces/plams_workdir.012/Cys_propane_NEB_p01/Cys_propane_NEB_p01.dill"
+    "/Users/haiiro/Dropbox/AMSPythonData/workspaces/plams_workdir.004/Cys_propane_near_TS/Cys_propane_near_TS.dill"
 ]
 
 # Define atom pairs (pairs of atom numbers) for which to extract bond critical point information.
@@ -62,13 +62,13 @@ atom_pairs_list = ( # one-based indices, same as shown in AMSView
 # THIS OVERRIDES THE EEF USED IN THE NEB CALCULATION.
 # Uncomment the following line to specify your own electric field, or leave it as None to use the NEB eef if present.
 # user_eef = (0.0, 0.0, 0.01)
-user_eef = None
+user_eef = (0.0, 0.0, 0.01)
 
 # To get better resultion around the transition state, we'll identify the TS image (highest energy image)
 # and create additional images between it and the adjacent images, using a linear interpolation of the
 # coordinates of the adjacent images. Here, you specify how many extra images to add on *each* side of the TS image.
 # Set to 0 to disable this feature.
-num_extra_images = 0
+num_extra_images = 10
 
 # Now define the x and y properties for generated plots:
 
@@ -109,7 +109,7 @@ eef_conversion_factor = 51.4220861908324
 
 ##### densf grid settings #####
 
-densf_bb_atom_numbers = [47, 40, 39, 1]
+densf_bb_atom_numbers = []#47, 40, 39, 1]
 densf_bb_padding = 5.0  # Angstroms
 densf_bb_spacing = 0.05  # Angstroms (densf "fine" is 0.05, "medium" is 0.1, "coarse" is 0.2)
 
@@ -310,6 +310,7 @@ def get_bcp_properties(job, atom_pairs, unrestricted=False):
         # https://www.scm.com/doc/ADF/Input/Densf.html
         in_file = job.results['adf.rkf']
         out_file = job.results['adf.rkf'].replace('.rkf', '.t41')
+        densf_run_file = job.results['adf.rkf'].replace('.rkf', '_densf.run')
         # if out_file exists, check if the nubmer of points is correct. If so,
         # skip the densf run. If not, delete it and make a new one.
         densf_kf = None
@@ -325,8 +326,6 @@ def get_bcp_properties(job, atom_pairs, unrestricted=False):
             # grid_coords = '\n'.join([f'{cp[0]} {cp[1]} {cp[2]}' for cp in bcp_coords])
             grid_coords = '\n'.join(bcp_check_points)
             grid_block = f'Grid Inline\n{grid_coords}\nEnd\n'
-            in_file_dir = os.path.dirname(in_file)
-            densf_run_file = os.path.join(in_file_dir, "densf.run")
             with open(densf_run_file, "w") as file:
                 densf_content = f"""ADFFILE {in_file}
 OUTPUTFILE {out_file}
@@ -343,7 +342,7 @@ DenHess"""
             densf_command = f"$AMSBIN/densf < {densf_run_file}"
             
             # Step 6: Run the densf job
-            log_print(f'Running densf for {job.name} CPs')
+            log_print(f'Running densf for {job.name} CPs with run file {densf_run_file}')
             densf_out = subprocess.run(densf_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             # log_print(densf_out.stdout.decode())
             if densf_out.returncode != 0:
@@ -360,18 +359,11 @@ DenHess"""
                 grad_y = densf_kf[('SCF',f'DensityGradY_{field}')][cp_ind * num_check_points_total : (cp_ind+1) * num_check_points_total]
                 grad_z = densf_kf[('SCF',f'DensityGradZ_{field}')][cp_ind * num_check_points_total : (cp_ind+1) * num_check_points_total]
                 grad_mags = [sqrt(grad_x[i]**2 + grad_y[i]**2 + grad_z[i]**2) for i in range(num_check_points_total)]
-                total_rho_cp_grad_mag = grad_mags[total_rho_cp_ind]
                 min_grad_ind = grad_mags.index(min(grad_mags))
                 min_grad_ind += cp_ind * num_check_points_total
                 total_rho_cp_ind += cp_ind * num_check_points_total
                 
                 coords = [densf_kf[(f'{ax} values',f'{ax} values')][min_grad_ind] for ax in ['x', 'y', 'z']]
-                total_rho_cp_coords = [densf_kf[(f'{ax} values',f'{ax} values')][total_rho_cp_ind] for ax in ['x', 'y', 'z']]
-                
-                cp_number = cp_data[out_cp_ind]['CP #']
-                cp_atoms = cp_data[out_cp_ind]['ATOMS']
-                # log_print(f"Minimum gradient magnitude for {field} at CP {cp_number} ({cp_atoms}) is {min(grad_mags)} with coordinates {coords}")
-                # log_print(f"  Total density cp index is {total_rho_cp_ind} with grad mag {total_rho_cp_grad_mag} and coordinates {total_rho_cp_coords}")
 
                 cp_data[out_cp_ind][f'CP COORDINATES_{field}'] = coords
                 cp_data[out_cp_ind][f'Rho_{field}'] = densf_kf[('SCF',f'Density_{field}')][min_grad_ind]
@@ -809,9 +801,12 @@ def process_results(jobs, atom_pairs, path, prop_list, x_prop_list, unrestricted
     ########################################################################################
 
     # We'll save results to a single CSV file in the results_dir
-    with ThreadPoolExecutor(max_workers=num_cores) as executor:
-        args = [(job, atom_pairs, unrestricted) for job in jobs.children]
-        total_cp_data = list(executor.map(bcp_func_wrapper, args))
+    total_cp_data = []
+    for job in jobs.children:
+        cp_data = get_bcp_properties(job, atom_pairs, unrestricted=unrestricted)
+        total_cp_data.extend(cp_data)
+    
+    print(total_cp_data[0])
 
     write_csv(total_cp_data, path)
     
