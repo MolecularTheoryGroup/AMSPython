@@ -1,3 +1,6 @@
 {
-    "wolf.disableHotModeWarning": true
+    "wolf.disableHotModeWarning": true,
+    "editor.tabSize": 4,
+    "editor.detectIndentation": true,
+    "python.defaultInterpreterPath": "/usr/local/bin/python3"
 }
