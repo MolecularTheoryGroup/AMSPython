@@ -30,28 +30,42 @@ from concurrent.futures import ThreadPoolExecutor
 
 # Define the path to the AMS job file
 ams_job_paths = [
-    "/Users/haiiro/Dropbox/AMSPythonData/Cys_near_TS_NEB_NF/Cys_propane_near_TS.ams"
+    "/Users/haiiro/Dropbox/AMSPythonData/Cys_NEB_B3LYP/ams.rkf"
 ]
 # To rerun on a previously processed file, set the restart_dill_path to the path of the dill file in the
 # working directory of the previous run. Otherwise, set to None, False, or ''.
 restart_dill_paths = [
-    "/Users/haiiro/Dropbox/AMSPythonData/workspaces/plams_workdir.004/Cys_propane_near_TS/Cys_propane_near_TS.dill"
+    "/Users/haiiro/Dropbox/AMSPythonData/workspaces/plams_workdir.022/ams/ams.dill",
+    # "/Users/haiiro/Dropbox/AMSPythonData/workspaces/plams_workdir.004/Cys_propane_near_TS/Cys_propane_near_TS.dill",
+    # "/Users/haiiro/Dropbox/AMSPythonData/workspaces/plams_workdir_tyr/Tyr_propane_NEB_NF/Tyr_propane_NEB_NF.dill",
+    # "/Users/haiiro/Dropbox/AMSPythonData/workspaces/plams_workdir.003/His_propane_near_TS/His_propane_near_TS.dill",
 ]
 
 # Define atom pairs (pairs of atom numbers) for which to extract bond critical point information.
 # One list for each input file defined above
 atom_pairs_list = ( # one-based indices, same as shown in AMSView
     (
-        (40, 47),  # CH
+        (51, 47),  # CH
         (47, 39),  # OH
         (1, 39),  # FeO
-        (1, 53),  # FeS
+        (1, 40),  # Fe-amino acid Cys
         (1, 2),  # FeN
         (1, 3),  # FeN
         (1, 4),  # FeN
         (1, 5),  # FeN
     ),
 )
+
+##### densf grid settings #####
+
+densf_bb_atom_numbers = [47, 40, 39, 1]
+densf_bb_padding = 5.0  # Angstroms
+densf_bb_spacing = 0.05  # Angstroms (densf "fine" is 0.05, "medium" is 0.1, "coarse" is 0.2)
+
+##### end densf full grid settings #####
+
+# Index of atom pair for which to print the bond distance of each image to be run. 
+atom_pair_for_bond_distance_printout = 1
 
 # If the input NEB file includes an applied electric field, then that field will determine the
 # magnitude and direction of the electric fields applied to the images in the NEB calculation,
@@ -62,13 +76,13 @@ atom_pairs_list = ( # one-based indices, same as shown in AMSView
 # THIS OVERRIDES THE EEF USED IN THE NEB CALCULATION.
 # Uncomment the following line to specify your own electric field, or leave it as None to use the NEB eef if present.
 # user_eef = (0.0, 0.0, 0.01)
-user_eef = (0.0, 0.0, 0.01)
+user_eef = None #(0.0, 0.0, 0.01)
 
 # To get better resultion around the transition state, we'll identify the TS image (highest energy image)
 # and create additional images between it and the adjacent images, using a linear interpolation of the
 # coordinates of the adjacent images. Here, you specify how many extra images to add on *each* side of the TS image.
 # Set to 0 to disable this feature.
-num_extra_images = 10
+num_extra_images = 0
 
 # Now define the x and y properties for generated plots:
 
@@ -85,6 +99,16 @@ plot_y_prop_list = [
     "Phi",
     "Molecular bond energy",
 ]
+
+# This specifies properties to include in combined plots with rows for each y property and columns for each EEF type.
+# Additionally, the suffix " d/dx" causes the dy/dx derivative to be computed and plotted.
+combined_plots_y_prop_lists = {
+    "Molecular bond energy": ["Molecular bond energy"],
+    "Rho": ["Molecular bond energy", "Rho"],
+    "Rho d/dx": ["Molecular bond energy", "Rho d/dx"],
+    "Angles": ["Molecular bond energy", "Theta", "Phi"],
+    "Angles d/dx": ["Molecular bond energy", "Theta d/dx", "Phi d/dx"],
+}
 
 plot_x_prop_list = [
     "H47-O39 distance",
@@ -107,11 +131,9 @@ check_point_grid_extent_fraction = 0.02
 # new jobs they need to be V/Angstrom. The conversion factor is 51.4220861908324.
 eef_conversion_factor = 51.4220861908324
 
-##### densf grid settings #####
-
-densf_bb_atom_numbers = []#47, 40, 39, 1]
-densf_bb_padding = 5.0  # Angstroms
-densf_bb_spacing = 0.05  # Angstroms (densf "fine" is 0.05, "medium" is 0.1, "coarse" is 0.2)
+# Define the EEF pairs
+# eef_pairs = (("origEEF", eef_conversion_factor), ("revEEF", -eef_conversion_factor), ("noEEF", 0))
+eef_pairs = (("origEEF", eef_conversion_factor), ("revEEF", -eef_conversion_factor))
 
 ########################################################################################
 # END OF USER SETTINGS
@@ -125,6 +147,38 @@ num_cores = ceil(os.cpu_count() / 2)
 ########################################################################################
 # Step 0: define helper functions
 ########################################################################################
+
+def compute_derivative(x, y, order=1):
+    """
+    Calculate higher-order derivatives using repeated application of np.diff().
+    
+    Parameters:
+    x (array): x-coordinates
+    y (array): y-coordinates
+    order (int): The order of the derivative to calculate (default is 1)
+    
+    Returns:
+    tuple: (x_values, derivative_values)
+    """
+    if order < 1:
+        raise ValueError("Order must be at least 1")
+    
+    x_values = np.array(x)
+    y_values = np.array(y)
+    
+    for _ in range(order):
+        # Calculate the differences
+        dy = np.diff(y_values)
+        dx = np.diff(x_values)
+        
+        # Calculate the derivative
+        derivative = dy / dx
+        
+        # Update x_values and y_values for the next iteration
+        x_values = (x_values[1:] + x_values[:-1]) / 2
+        y_values = derivative
+    
+    return x_values, y_values
 
 def log_print(*args, **kwargs):
     timestamp = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
@@ -457,8 +511,7 @@ KinDens scf"""
             log_print(f"Finished densf for {job.name} full density")
             os.remove(densf_run_file)
     
-
-def generate_plots(cp_data, prop_list, x_prop_list, out_dir):
+def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lists):
     # Ensure the output directory exists
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
@@ -475,7 +528,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir):
                 all_props.append(cp_prop)
 
     bcp_prop_dict = {}
-    eef_types = ['_origEEF', '_revEEF', '_noEEF', ''] if has_eef else ['']
+    eef_types = ([f"_{eef[0]}" for eef in eef_pairs] + ['']) if has_eef else ['']
     for bcp in unique_bcp_atoms:
         bcp_prop_dict[bcp] = {}
         bcp_data = sorted([cp for cp in cp_data if cp['ATOMS'] == bcp], key=lambda x: x['JOB_NAME'])
@@ -486,11 +539,115 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir):
                 for cp in bcp_eef_data:
                     bcp_prop_dict[bcp][f"{prop}{eef}"].append(cp[prop])
 
-    all_props = [ p for p in bcp_prop_dict[unique_bcp_atoms[0]].keys() if p not in x_prop_list ]
+    all_props = [p for p in bcp_prop_dict[unique_bcp_atoms[0]].keys() if p not in x_prop_list]
 
     # plots for combinations of x_prop_list vs prop_list
-    eef_types = ['_origEEF', '_revEEF', '_noEEF'] if has_eef else ['']
+    eef_types = [f"_{eef[0]}" for eef in eef_pairs] if has_eef else ['']
+    
+    num_eef = len(eef_types)
 
+    line_styles = {
+        '_origEEF': '-',    # solid
+        '_revEEF': '--',    # dashed
+        '_noEEF': ':',      # dotted
+        '': '-'             # solid (for non-EEF plots)
+    }
+
+    for x_prop in x_prop_list:
+        for plot_name, y_prop_list in combined_plots_y_prop_lists.items():
+            log_print(f"Plotting combined plots for {plot_name} vs {x_prop} for bond CPs")
+            # Expand y_prop_list to include A, B, and total variants
+            expanded_y_prop_list = []
+            for y_prop in y_prop_list:
+                if " d/dx" in y_prop:
+                    base_prop = y_prop.replace(" d/dx", "")
+                    if f"{base_prop}_A" in all_props:
+                        expanded_y_prop_list.extend([f"{base_prop}_A d/dx", f"{base_prop}_B d/dx", f"{base_prop} d/dx"])
+                    else:
+                        expanded_y_prop_list.append(y_prop)
+                elif f"{y_prop}_A" in all_props:
+                    expanded_y_prop_list.extend([f"{y_prop}_A", f"{y_prop}_B", y_prop])
+                else:
+                    expanded_y_prop_list.append(y_prop)
+
+            # Create a large figure for the combined plot
+            fig, axs = plt.subplots(len(expanded_y_prop_list), num_eef+1, figsize=(20, (num_eef+2)*len(expanded_y_prop_list)))
+            fig.suptitle(f"{job_name}: Combined plots for {x_prop} ({plot_name})", fontsize=16, y=1.02)
+
+            for i, y_prop in enumerate(expanded_y_prop_list):
+                if x_prop in y_prop or y_prop in x_prop:
+                    continue
+
+                is_derivative = " d/dx" in y_prop
+                base_prop = y_prop.replace(" d/dx", "") if is_derivative else y_prop
+
+                for j, eef in enumerate(eef_types):
+                    ax = axs[i, j] if len(expanded_y_prop_list) > 1 else axs[j]
+                    ax.set_title(f"{y_prop}{eef} vs {x_prop}", fontsize=9)
+                    ax.set_xlabel(x_prop)
+                    ax.set_ylabel(y_prop)
+
+                    for bcp, bcp_props in bcp_prop_dict.items():
+                        x_values = bcp_props.get(f"{x_prop}", None)
+                        y_values = bcp_props.get(f"{base_prop}{eef}", None)
+                        if x_values and y_values:
+                            if len(x_values) != len(y_values):
+                                if len(x_values) == num_eef * len(y_values):
+                                    x_values = x_values[:len(y_values)]
+                                else:
+                                    print(f"Warning: Unexpected length mismatch for {bcp}. Skipping this plot.")
+                                    continue
+                            x_values, y_values = zip(*sorted(zip(x_values, y_values)))
+                            
+                            if is_derivative:
+                                x_vals, y_vals = compute_derivative(x_values, y_values)
+                                ax.plot(x_vals[1:-1], y_vals[1:-1], '-o', label=bcp, markersize=2)
+                            else:
+                                ax.plot(x_values, y_values, '-o', label=bcp, markersize=2)
+                    
+                    ax.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=7)
+                    ax.grid(True)
+
+                # Add the "All EEF" plot in the fourth column
+                if has_eef:
+                    ax = axs[i, num_eef] if len(expanded_y_prop_list) > 1 else axs[num_eef]
+                    ax.set_title(f"{y_prop} vs {x_prop} (All EEF)", fontsize=9)
+                    ax.set_xlabel(x_prop)
+                    ax.set_ylabel(y_prop)
+
+                    for bcp, bcp_props in bcp_prop_dict.items():
+                        for eef in ['_origEEF', '_noEEF', '_revEEF']:
+                            x_values = bcp_props.get(f"{x_prop}{eef}", None)
+                            y_values = bcp_props.get(f"{base_prop}{eef}", None)
+                            if x_values and y_values:
+                                if len(x_values) != len(y_values):
+                                    if len(x_values) == num_eef * len(y_values):
+                                        x_values = x_values[:len(y_values)]
+                                    else:
+                                        print(f"Warning: Unexpected length mismatch for {bcp}. Skipping this plot.")
+                                        continue
+                                x_values, y_values = zip(*sorted(zip(x_values, y_values)))
+                                
+                                if is_derivative:
+                                    x_vals, y_vals = compute_derivative(x_values, y_values)
+                                    ax.plot(x_vals[1:-1], y_vals[1:-1], f'{line_styles[eef]}o', label=f"{bcp}{eef}", markersize=0)
+                                else:
+                                    ax.plot(x_values, y_values, f'{line_styles[eef]}o', label=f"{bcp}{eef}", markersize=0)
+                    
+                    ax.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=7)
+                    ax.grid(True)
+
+            plt.tight_layout()
+            # Determine top padding based on number of rows; the more rows, the less padding
+            top = min(0.995, 0.9 + 0.02 * len(expanded_y_prop_list))
+            plt.subplots_adjust(top=top)  # Add more padding at the top
+            f_base = f"{job_name}combined_{x_prop}_{plot_name}.png".replace("/","-")
+            plt.savefig(os.path.join(out_dir, f_base), dpi=300, bbox_inches='tight')
+            plt.close()
+    
+    return
+
+    # Generate individual plots (as in the original function)
     for y_prop in all_props:
         for x_prop in x_prop_list:
             if x_prop in y_prop or y_prop in x_prop:
@@ -504,19 +661,15 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir):
                 for bcp, bcp_props in bcp_prop_dict.items():
                     x_values = bcp_props.get(f"{x_prop}", None)
                     y_values = bcp_props.get(f"{y_prop}{eef}", None)
-                    if x_values and y_values:  # Ensure there are values to plot
-                        # Check if lengths are different
+                    if x_values and y_values:
                         if len(x_values) != len(y_values):
-                            # Ensure x is always 3 times longer than y
-                            if len(x_values) == 3 * len(y_values):
+                            if len(x_values) == num_eef * len(y_values):
                                 x_values = x_values[:len(y_values)]
                             else:
                                 print(f"Warning: Unexpected length mismatch for {bcp}. Skipping this plot.")
                                 continue
-                        # sort y and x values by x values
                         x_values, y_values = zip(*sorted(zip(x_values, y_values)))
-                        
-                        ax.plot(x_values, y_values, '-o', label=bcp, markersize=2)  # '-o' creates lines with circle markers
+                        ax.plot(x_values, y_values, '-o', label=bcp, markersize=2)
                     else:
                         ax = None
                         plt.close()
@@ -525,19 +678,11 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir):
                     ax.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=7)
                     plt.subplots_adjust(right=0.75)
                     ax.grid(True)
-                    # tight layout
                     plt.tight_layout()
                     plt.savefig(os.path.join(out_dir, f"{job_name}{y_prop}{eef}_vs_{x_prop}.png"))
                     plt.close()
 
-            # Combined EEF plot
-            # Define a dictionary to map EEF types to line styles
-            line_styles = {
-                '_origEEF': '-',    # solid
-                '_revEEF': '--',    # dashed
-                '_noEEF': ':'       # dotted
-            }
-
+            # Combined EEF plot (as in the original function)
             if has_eef:
                 log_print(f"Plotting {y_prop} vs {x_prop} for bond CPs (All EEF)")
                 fig, ax = plt.subplots()
@@ -548,19 +693,14 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir):
                     for eef in ['_origEEF', '_revEEF', '_noEEF']:
                         x_values = bcp_props.get(f"{x_prop}{eef}", None)
                         y_values = bcp_props.get(f"{y_prop}{eef}", None)
-                        if x_values and y_values:  # Ensure there are values to plot
-                            # Check if lengths are different
+                        if x_values and y_values:
                             if len(x_values) != len(y_values):
-                                # Ensure x is always 3 times longer than y
-                                if len(x_values) == 3 * len(y_values):
+                                if len(x_values) == num_eef * len(y_values):
                                     x_values = x_values[:len(y_values)]
                                 else:
                                     print(f"Warning: Unexpected length mismatch for {bcp}. Skipping this plot.")
                                     continue
-                            # sort y and x values by x values
                             x_values, y_values = zip(*sorted(zip(x_values, y_values)))
-                            
-                            # Use the appropriate line style for each EEF type
                             ax.plot(x_values, y_values, f'{line_styles[eef]}o', label=f"{bcp}{eef}", markersize=0)
                         else:
                             ax = None
@@ -666,19 +806,27 @@ def main(ams_job_path, atom_pairs):
     # Step 1: getting basic input file information
     ########################################################################################
 
-    # Define the EEF pairs
-    eef_pairs = (("origEEF", eef_conversion_factor), ("revEEF", -eef_conversion_factor), ("noEEF", 0))
-
     # Get the results directory from the ams job file path (same as job path but with extension replaced with .results)
     job_ext = os.path.splitext(ams_job_path)[1]
     results_dir = ams_job_path.replace(job_ext, ".results")
+    if ams_job_path.endswith(".ams"):
+        kf_path = os.path.join(results_dir, "ams.rkf")
+        input_job_name = os.path.basename(ams_job_path).replace(job_ext, "")
+    elif ams_job_path.endswith(".rkf"):
+        kf_path = ams_job_path
+        input_job_name = os.path.basename(ams_job_path).replace(".rkf", "")
+    else:
+        log_print(f"Invalid job file path: {ams_job_path}")
+        return
 
     # job name is the job base name
-    input_job_name = os.path.basename(ams_job_path).replace(job_ext, "")
 
     # Load the results kf file
-    kf_path = os.path.join(results_dir, "ams.rkf")
     kf = KFFile(kf_path)
+    
+    term_status = kf[("General", "termination status")]
+    
+    log_print(f"Processing job {input_job_name} with termination status {term_status}")
 
     is_unrestricted = 'Unrestricted Yes' in kf[('General','user input')]
 
@@ -687,6 +835,11 @@ def main(ams_job_path, atom_pairs):
 
     # Get exiting job object from run file
     run_file_path = ams_job_path.replace(job_ext, ".run")
+    # if run file does not exist, create it using the contents of General: user input
+    if not os.path.exists(run_file_path):
+        with open(run_file_path, "w") as run_file:
+            run_file.write(kf[("General", "user input")])
+    
     input_job = AMSJob.from_inputfile(run_file_path)
 
     # replace NEB task with singlepoint
@@ -768,20 +921,26 @@ def main(ams_job_path, atom_pairs):
                 jobs.children.append(job)
             im_num += 1
 
-    # print each job's name and coordinates of first atom
+    # print each job's name and coordinates of first atom (for debugging only; remember to check that the correct bond distance is being printed)
     job_num = 0
+    atom_nums = atom_pairs[atom_pair_for_bond_distance_printout]
+    bond_name = f"{atom_species[atom_nums[0]-1]}{atom_nums[0]}-{atom_species[atom_nums[1]-1]}{atom_nums[1]}"
+    log_print(f"Printing bond distances for {bond_name} in each job:")
     for job in jobs.children:
-        if "noEEF" in job.name:
-            if job_num == highest_index_image:
-                log_print("start extra images")
-            elif job_num == highest_index_image + num_extra_images:
-                log_print("highest image vvvv")
-            elif job_num == highest_index_image + num_extra_images + 1:
-                log_print("highest image ^^^^")
-            elif job_num == highest_index_image + 2*num_extra_images + 1:
-                log_print("end extra images")
-            log_print(f"{job.name}: H47-O40 distance = {job.molecule.atoms[46].distance_to(job.molecule.atoms[39])}")
+        if "origEEF" in job.name:
+            if num_extra_images > 0:
+                if job_num == highest_index_image:
+                    log_print("start extra images")
+                elif job_num == highest_index_image + num_extra_images:
+                    log_print("highest image vvvv")
+                elif job_num == highest_index_image + num_extra_images + 1:
+                    log_print("highest image ^^^^")
+                elif job_num == highest_index_image + 2*num_extra_images + 1:
+                    log_print("end extra images")
+            log_print(f"{job.name}: {bond_name} distance = {job.molecule.atoms[atom_nums[0]-1].distance_to(job.molecule.atoms[atom_nums[1]-1])}")
             job_num += 1
+            
+    log_print(f"Running {len(jobs.children)} jobs...")
 
     jobs.run()
     
@@ -805,17 +964,17 @@ def process_results(jobs, atom_pairs, path, prop_list, x_prop_list, unrestricted
     for job in jobs.children:
         cp_data = get_bcp_properties(job, atom_pairs, unrestricted=unrestricted)
         total_cp_data.extend(cp_data)
-    
-    print(total_cp_data[0])
 
     write_csv(total_cp_data, path)
     
-    generate_plots(total_cp_data, prop_list, x_prop_list, os.path.dirname(path))
+    generate_plots(total_cp_data, prop_list, x_prop_list, os.path.dirname(path), combined_plots_y_prop_lists)
     
     if len(densf_bb_atom_numbers) > 0:
-        with ThreadPoolExecutor(max_workers=num_cores) as executor:
-            args = [(job, os.path.dirname(path)) for job in jobs.children]
-            list(executor.map(densf_func_wrapper, args))
+        # with ThreadPoolExecutor(max_workers=num_cores) as executor:
+        #     args = [(job, os.path.dirname(path)) for job in jobs.children]
+        #     list(executor.map(densf_func_wrapper, args))
+        for job in jobs.children:
+            generate_full_t41(job, os.path.dirname(path))
 
 def test_post_processing_single_job(job_path, atom_pairs):
     input_job = AMSJob.load_external(job_path)

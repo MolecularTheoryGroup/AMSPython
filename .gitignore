@@ -10,3 +10,6 @@ plams_workdir*
 logfile
 */logfile
 **/logfile
+
+data
+data/*
