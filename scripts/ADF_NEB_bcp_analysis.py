@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
+import pandas as pd
 
 # This script is intended to be run on the results of a NEB calculation in AMS.
 # The script will create a series of single-point calculations for each image in the NEB calculation,
@@ -28,6 +29,12 @@ from concurrent.futures import ThreadPoolExecutor
 # USER SETTINGS
 ########################################################################################
 
+# Define paths to previously created cp data CSV files in order to do statistical analysis
+csv_file_paths = [
+    "/Users/haiiro/NoSync/AMSPython/data/Cys_propane_near_TS_cp_info.csv",
+    "/Users/haiiro/NoSync/AMSPython/data/His_propane_near_TS_cp_info.csv",
+    "/Users/haiiro/NoSync/AMSPython/data/Tyr_propane_NEB_NF_cp_info.csv",
+]
 # Define the path to the AMS job file
 ams_job_paths = ["/Users/haiiro/Dropbox/AMSPythonData/Cys_NEB_B3LYP/ams.rkf"]
 # To rerun on a previously processed file, set the restart_dill_path to the path of the dill file in the
@@ -298,6 +305,7 @@ def get_bcp_properties(job, atom_pairs, unrestricted=False):
     bcp_coords = []
     bcp_atom_indices = []
     bcp_check_points = []
+    atom_pair_distances = []
     out_mol = job.results.get_main_molecule()
 
     # get image number from job name, which is present as, for example, 'im001' in the job name
@@ -324,6 +332,8 @@ def get_bcp_properties(job, atom_pairs, unrestricted=False):
         bcp_atom_indices.append(
             "-".join([f"{out_mol.atoms[pair[i]-1].symbol}{pair[i]}" for i in range(2)])
         )
+        bond_length = out_mol.atoms[pair[0] - 1].distance_to(out_mol.atoms[pair[1] - 1])
+        atom_pair_distances.append(bond_length)
         if unrestricted:
             # the CP locations in the unrestricted spin-a and spin-b densities are not the
             # same as in the total density (those are the ones we have now). So we need to
@@ -333,9 +343,6 @@ def get_bcp_properties(job, atom_pairs, unrestricted=False):
             # The check points will be on a regular 3d grid around the total-density CP location,
             # with point spacing based on the distance between the two atoms using the defined
             # fraction of that distance.
-            bond_length = out_mol.atoms[pair[0] - 1].distance_to(
-                out_mol.atoms[pair[1] - 1]
-            )
             check_point_spacing = (
                 bond_length * check_point_grid_extent_fraction / num_check_points
             )
@@ -368,7 +375,7 @@ def get_bcp_properties(job, atom_pairs, unrestricted=False):
     # Loop over atom pairs, adding thier distances to the out_cp_data with "<bond name> distance" as the key.
     # Each cp will need to store the distances for each atom pair.
     for i, pair in enumerate(atom_pairs):
-        bond_length = out_mol.atoms[pair[0] - 1].distance_to(out_mol.atoms[pair[1] - 1])
+        bond_length = atom_pair_distances[i]
         bond_length_str = f"{out_mol.atoms[pair[0]-1].symbol}{pair[0]}-{out_mol.atoms[pair[1]-1].symbol}{pair[1]} distance"
         for cp in out_cp_data:
             cp[bond_length_str] = bond_length
@@ -1239,8 +1246,346 @@ def test_post_processing_multiple_jobs(dill_path, atom_pairs, unrestricted=False
     return
 
 
+def convert_string_to_number(s, h, no_convert_headers=["SIGNATURE"]):
+    """
+    Convert string to int or float if possible, otherwise return original string.
+
+    Args:
+        s (str): String to convert
+
+    Returns:
+        Union[int, float, str]: Converted value
+    """
+    if h in no_convert_headers:
+        return s
+    try:
+        # First try converting to int
+        value = int(s)
+        return value
+    except ValueError:
+        try:
+            # Then try converting to float
+            value = float(s)
+            return value
+        except ValueError:
+            # If both fail, return original string
+            return s
+
+
+def read_simple_csv(csv_path):
+    """
+    Read a CSV file written by write_csv() into a list of dictionaries.
+
+    Args:
+        csv_path (str): Path to the CSV file
+
+    Returns:
+        list: List of dictionaries, same structure as all_cp_data
+    """
+    cp_data = []
+
+    with open(csv_path, "r") as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            # Remove empty fields, convert string'None' to None, and convert numbers
+            cp_dict = {
+                k: (None if v == "None" else convert_string_to_number(v, k))
+                for k, v in row.items()
+                if v != ""
+            }
+            cp_data.append(cp_dict)
+
+    return cp_data
+
+
+def prepare_bcp_crossing_df(df_full, rxn_coord_name, use_theta_phi_crossings=False, use_spin_crossings=False, sys_whitelist=[], eef_whitelist=[]):    
+    from scipy.interpolate import interp1d
+    
+    # Step 2: Create nested dict of BCP interpolations
+    def prepare_bcp_interpolations(df_full, rxn_coord_name, system_eef_pairs):
+        # First, identify float columns that aren't the reaction coordinate
+        float_cols = df_full.select_dtypes(include=[np.float64, np.float32]).columns
+        prop_cols = [col for col in float_cols]
+
+        # Initialize the outer dictionary
+        bcp_interps = {}
+
+        # For each system-EEF pair
+        for system_eef in system_eef_pairs:
+            system, eef = system_eef.split('_')
+            # Get data for this system
+            system_mask = (df_full['SYSTEM'] == system) & (df_full['EEF'].astype(str) == eef)
+            system_data = df_full[system_mask]
+
+            # Initialize dict for this system
+            bcp_interps[system_eef] = {}
+
+            # For each unique BCP in this system
+            for atoms in system_data['ATOMS'].unique():
+                # Get data for this BCP
+                bcp_mask = system_data['ATOMS'] == atoms
+                bcp_data = system_data[bcp_mask]
+
+                # Initialize dict for this BCP's properties
+                bcp_interps[system_eef][atoms] = {}
+
+                # Create interpolation for each property
+                for prop in prop_cols:
+                    x = bcp_data[rxn_coord_name].values
+                    y = bcp_data[prop].values
+                    # Sort x and y by x values to ensure proper interpolation
+                    sort_idx = np.argsort(x)
+                    x = x[sort_idx]
+                    y = y[sort_idx]
+                    # Create interpolation
+                    interp = interp1d(x, y, kind='linear')
+                    bcp_interps[system_eef][atoms][prop] = interp
+        
+        return bcp_interps
+
+    # Step 3: Find BCP crossing points for each system
+    def identify_all_system_crossings(bcp_interps, system_eef_pairs, use_theta_phi_crossings=False, use_spin_crossings=False):
+        def identify_bcp_crossings(bcp_interps, system_eef_pairs, crossing_var_name='Rho'):
+            system_crossings = {}
+
+            for system_eef in system_eef_pairs:
+                system_crossings[system_eef] = {}
+                
+                # Get all BCPs for this system
+                bcps = list(bcp_interps[system_eef].keys())
+                
+                # For each pair of BCPs
+                for i, bcp1 in enumerate(bcps):
+                    for bcp2 in bcps[i+1:]:
+                        # Get Rho interpolations for both BCPs
+                        rho1 = bcp_interps[system_eef][bcp1][crossing_var_name]
+                        rho2 = bcp_interps[system_eef][bcp2][crossing_var_name]
+                        
+                        # Get the domain where both interpolations are valid
+                        x_min = max(rho1.x[0], rho2.x[0])
+                        x_max = min(rho1.x[-1], rho2.x[-1])
+                        
+                        # Create dense sampling of points in this domain
+                        x_vals = np.linspace(x_min, x_max, 1000)
+                        y1 = rho1(x_vals)
+                        y2 = rho2(x_vals)
+                        
+                        # Find where the difference changes sign (crossing points)
+                        diff = y1 - y2
+                        cross_indices = np.where((diff[:-1] * diff[1:]) < 0)[0]
+                        
+                        # If there's a crossing
+                        if len(cross_indices) > 0:
+                            # For each crossing (there might be multiple)
+                            for idx in cross_indices:
+                                # Linear interpolation to get more precise crossing point
+                                x0 = x_vals[idx]
+                                x1 = x_vals[idx + 1]
+                                y0 = diff[idx]
+                                y1 = diff[idx + 1]
+                                x_cross = x0 - y0 * (x1 - x0)/(y1 - y0)
+                                
+                                # Create BCP_CROSSING key (sorted ATOMS values with underscore)
+                                bcp_crossing = '_'.join(sorted([bcp1, bcp2]))
+                                
+                                # Store the crossing point
+                                system_crossings[system_eef][bcp_crossing] = x_cross
+            
+            return system_crossings
+        
+        all_system_crossings = {}
+        vars = ['Rho'] + (["Theta", "Phi"] if use_theta_phi_crossings else [])
+        for var in vars:
+            for spin in [''] + (['_A', '_B'] if use_spin_crossings else []):
+                if any(c.endswith(spin) for c in df_full.columns):
+                    var_Str = var + spin
+                    all_system_crossings[var_Str] = identify_bcp_crossings(bcp_interps, system_eef_pairs, crossing_var_name=var_Str)
+                    
+        return all_system_crossings
+
+    # Step 4: Find common crossings and create ordered dicts
+    def get_common_crossing_bcp_order(all_system_crossings, system_eef_pairs):
+        # Find crossings that occur in all systems
+        first_var_system_key = list(all_system_crossings.keys())[0]
+        all_crossings = set(all_system_crossings[first_var_system_key][system_eef_pairs[0]].keys())
+        for var_systems in all_system_crossings.values():
+            for system_eef in system_eef_pairs:
+                all_crossings &= set(var_systems[system_eef].keys())
+        
+        # Order crossings by their R value in the first system
+        first_system = system_eef_pairs[0]
+        ordered_crossings = sorted(
+            all_crossings,
+            key=lambda x: all_system_crossings[first_var_system_key][first_system][x]
+        )
+        
+        # Create crossing_order dict
+        crossing_order = {
+            crossing: idx for idx, crossing in enumerate(ordered_crossings)
+        }
+        
+        # Get unique BCPs involved in these crossings
+        unique_bcps = set()
+        for crossing in all_crossings:
+            bcp1, bcp2 = crossing.split('_')
+            unique_bcps.add(bcp1)
+            unique_bcps.add(bcp2)
+        
+        # Create ordered list of BCPs
+        ordered_bcps = sorted(unique_bcps)
+        
+        # Create bcp_order dict
+        bcp_order = {
+            bcp: idx for idx, bcp in enumerate(ordered_bcps)
+        }
+        
+        return ordered_crossings, crossing_order, ordered_bcps, bcp_order
+
+    # Step 1: Create sorted list of unique SYSTEM-EEF pairs
+    # Create system_eef identifiers and get unique sorted list
+    system_eef_pairs = sorted(
+        set(f"{system}_{eef}" for system, eef in zip(df_full["SYSTEM"], df_full["EEF"]))
+    )
+    
+    # Apply whitelists if provided
+    if sys_whitelist:
+        system_eef_pairs = [s for s in system_eef_pairs if s.split('_')[0] in sys_whitelist]
+    if eef_whitelist:
+        system_eef_pairs = [s for s in system_eef_pairs if s.split('_')[1] in eef_whitelist]
+
+    # Step 2: Prepare BCP interpolations
+    bcp_interps = prepare_bcp_interpolations(df_full, rxn_coord_name, system_eef_pairs)
+
+    # Step 3: Find BCP rho crossings for each system (and each spin if present) (and theta and phi crossings if requested)
+    all_system_crossings = identify_all_system_crossings(bcp_interps, system_eef_pairs, use_theta_phi_crossings=use_theta_phi_crossings, use_spin_crossings=use_spin_crossings)
+    
+    # Step 4: Find common crossings and create ordered dicts
+    ordered_crossings, crossing_order, ordered_bcps, bcp_order = get_common_crossing_bcp_order(all_system_crossings, system_eef_pairs)
+    
+    # Step 6: Create output DataFrame with all properties
+    rows = []
+    
+    for system_eef in system_eef_pairs:
+        system, eef = system_eef.split('_')
+        
+        # Get first BCP to find E_TS and R_TS (all BCPs share same energy values)
+        first_bcp = ordered_bcps[0]
+        energy_interp = bcp_interps[system_eef][first_bcp]['Molecular bond energy']
+        x_vals = np.linspace(energy_interp.x[0], energy_interp.x[-1], 1000)
+        y_vals = energy_interp(x_vals)
+        max_idx = np.argmax(y_vals)
+        R_TS = x_vals[max_idx]
+        E_TS = y_vals[max_idx]
+        
+        # For each crossing in the ordered list
+        for bcp_crossing in ordered_crossings:
+            row = {
+                'SYSTEM': system,
+                'EEF': int(eef),
+                'BCP_CROSSING': bcp_crossing
+            }
+            
+            # Get R and E at crossing
+            R = all_system_crossings['Rho'][system_eef][bcp_crossing]
+            E = energy_interp(R)
+            
+            # Calculate ∆E_TS and ∆R_TS
+            row['\\Delta E_{TS}'] = E_TS - E
+            row['\\Delta R_{TS}'] = R_TS - R
+            
+            # Get rho value at crossing
+            bcp1, bcp2 = bcp_crossing.split('_')
+            rho_interp = bcp_interps[system_eef][bcp1]['Rho']
+            row['\\rho'] = np.float64(rho_interp(R))
+            
+            # Calculate ∆rho_k for all BCPs
+            for k, bcp_k in enumerate(ordered_bcps):
+                key = f'\\Delta \\rho_{{{bcp_k}}}'
+                if bcp_k in bcp_crossing:
+                    row[key] = np.float64(0.0)
+                else:
+                    rho_k_interp = bcp_interps[system_eef][bcp_k]['Rho']
+                    rho_k = rho_k_interp(R)
+                    row[key] = row['\\rho'] - rho_k
+            
+            # Get all bond distances
+            distance_cols = [col for col in bcp_interps[system_eef][first_bcp].keys() 
+                           if col.endswith(' distance')]
+            for dist_col in distance_cols:
+                bcp_name = dist_col.replace(' distance', '')
+                dist_interp = bcp_interps[system_eef][first_bcp][dist_col]
+                row[f'd_{{{bcp_name}}}'] = np.float64(dist_interp(R))
+            
+            # Add theta/phi crossing information if requested
+            if use_theta_phi_crossings:
+                if 'Theta' in all_system_crossings:
+                    R_theta = all_system_crossings['Theta'][system_eef][bcp_crossing]
+                    row['\\Delta R_{TS_{\\theta}}'] = R_TS - R_theta
+                if 'Phi' in all_system_crossings:
+                    R_phi = all_system_crossings['Phi'][system_eef][bcp_crossing]
+                    row['\\Delta R_{TS_{\\phi}}'] = R_TS - R_phi
+            
+            # Add spin-resolved properties if present
+            if use_spin_crossings:
+                for spin in ['_A', '_B']:
+                    if f'Rho{spin}' in all_system_crossings:
+                        R_spin = all_system_crossings[f'Rho{spin}'][system_eef][bcp_crossing]
+                        E_spin = energy_interp(R_spin)
+                        row[f'\\Delta E_{{TS{spin}}}'] = E_TS - E_spin
+                        row[f'\\Delta R_{{TS{spin}}}'] = R_TS - R_spin
+                        rho_spin_interp = bcp_interps[system_eef][bcp1][f'Rho{spin}']
+                        row[f'\\rho{spin}'] = rho_spin_interp(R_spin)
+                        
+                        # Calculate ∆rho_k for spin component
+                        for k, bcp_k in enumerate(ordered_bcps):
+                            rho_k_spin_interp = bcp_interps[system_eef][bcp_k][f'Rho{spin}']
+                            rho_k_spin = rho_k_spin_interp(R_spin)
+                            row[f'\\Delta \\rho_{{{k}{spin}}}'] = row[f'\\rho{spin}'] - rho_k_spin
+            
+            rows.append(row)
+    
+    # Create DataFrame from rows
+    df = pd.DataFrame(rows)
+
+    return df
+
+
+def statistical_analysis(cp_data):
+    """
+    Here, we'll perform some statistical analysis on the data.
+    Early analysis from the plots revealed that the bond critical points' (BCPs) rho, theta, and phi values
+    will cross as the reaction progresses
+    """
+
+    # First, convert the data to a pandas DataFrame
+
+    cp_data_by_col = {k: [d.get(k, None) for d in cp_data] for k in cp_data[0].keys()}
+
+    df_full = pd.DataFrame(cp_data_by_col)
+
+    # First, we'll add some extra columns to the data:
+    # - "EEF" which is -1, 0, 1 if the "JOB_NAME" contains "revEEF", "noEEF", "origEEF" respectively
+    # - "sys" which is the system number extracted from the "JOB_NAME", the first underscore-separated value
+
+    df_full["EEF"] = df_full["JOB_NAME"].apply(
+        lambda x: -1 if "revEEF" in x else (0 if "noEEF" in x else 1)
+    )
+    df_full["SYSTEM"] = df_full["JOB_NAME"].apply(lambda x: x.split("_")[0])
+
+    df = prepare_bcp_crossing_df(
+        df_full, "H47-O39 distance", use_theta_phi_crossings=False, use_spin_crossings=False, sys_whitelist=["Cys"]
+    )
+
+    return
+
+
 if __name__ == "__main__":
-    if restart_dill_paths and len(restart_dill_paths) > 0:
+    if csv_file_paths:
+        cp_data = []
+        for csv_file_path in csv_file_paths:
+            cp_data.extend(read_simple_csv(csv_file_path))
+        statistical_analysis(cp_data)
+    elif restart_dill_paths and len(restart_dill_paths) > 0:
         for restart_dill_path, atom_pairs in zip(restart_dill_paths, atom_pairs_list):
             test_post_processing_multiple_jobs(
                 restart_dill_path, atom_pairs, unrestricted=True

@@ -112,5 +112,5 @@ def main(args=None):
     process_files(args.directory, args.section, args.verbose)
 
 if __name__ == '__main__':
-    main(['/Users/haiiro/NoSync/AMSPython/data/tape41_difference_dat', 'FOO', '-v'])
+    main(['/Users/haiiro/Library/Application Support/Mountain Duck/Volumes.noindex/DropboxMark.localized/2023_Elastic_Constants_collab_space/t41_diff_files', 'FOO', '-v'])
     # main()
