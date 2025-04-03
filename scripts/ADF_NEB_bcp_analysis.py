@@ -35,11 +35,11 @@ csv_file_paths = [
     # "/Users/haiiro/NoSync/AMSPython/data/BCP_crossing_analysis/Tyr_propane_NEB_NF_cp_info.csv",
 ]
 # Define the path to the AMS job file
-ams_job_paths = ["/Users/haiiro/Dropbox/AMSPythonData/Cys_NEB_B3LYP/ams.rkf"]
+ams_job_paths = ["/Users/haiiro/NoSync/2025_AMSPythonData/CM_no_field_NEB.results/ams.rkf"]
 # To rerun on a previously processed file, set the restart_dill_path to the path of the dill file in the
 # working directory of the previous run. Otherwise, set to None, False, or ''.
 restart_dill_paths = [
-    '/Users/haiiro/NoSync/2025_AMSPythonData/plams_workdir.004/Cys_propane_near_TS/Cys_propane_near_TS.dill',
+    # '/Users/haiiro/NoSync/2025_AMSPythonData/plams_workdir.004/Cys_propane_near_TS/Cys_propane_near_TS.dill',
     # "/Users/haiiro/Dropbox/AMSPythonData/workspaces/plams_workdir.004/Cys_propane_near_TS/Cys_propane_near_TS.dill",
     # "/Users/haiiro/Dropbox/AMSPythonData/workspaces/plams_workdir_tyr/Tyr_propane_NEB_NF/Tyr_propane_NEB_NF.dill",
     # "/Users/haiiro/Dropbox/AMSPythonData/workspaces/plams_workdir.003/His_propane_near_TS/His_propane_near_TS.dill",
@@ -49,20 +49,26 @@ restart_dill_paths = [
 # One list for each input file defined above
 atom_pairs_list = (  # one-based indices, same as shown in AMSView
     (
-        (51, 47),  # CH
-        (47, 39),  # OH
-        (1, 39),  # FeO
-        (1, 40),  # Fe-amino acid Cys
-        (1, 2),  # FeN
-        (1, 3),  # FeN
-        (1, 4),  # FeN
-        (1, 5),  # FeN
+        (9, 12),  # breaking C-O bond
+        (12, 13), # breaking C-O O's remaining (single -> double) C-O bond
+        (7, 9), # breaking C-O C's C-C bond towards OH
+        (9, 11), # breaking C-O C's C-C bond towards CO2
+        (1, 14), # forming C-C bond
+        (13, 14), # forming C-C other (double -> single) C-C bond
+        (1, 15), # forming C-C ring C-C bond with CO2 C
+        (1, 3), # forming C-C ring C-C bond with (aromatic -> single) ring C
+        (1, 11), # forming C-C ring C-C bond with (aromatic -> single) other ring C
     ),
 )
 
-##### densf grid settings #####
+##### densf full grid settings #####
 
-densf_bb_atom_numbers = [47, 40, 39, 1]
+# This script can also be used to create full 3d grids for each step along the NEB.
+# This is useful if Bondalyzer is to be used.
+# Configure the full grid settings below.
+# If no full grid is desired, leave densf_bb_atom_numbers as an empty list.
+
+densf_bb_atom_numbers = []
 densf_bb_padding = 5.0  # Angstroms
 densf_bb_spacing = (
     0.05  # Angstroms (densf "fine" is 0.05, "medium" is 0.1, "coarse" is 0.2)
@@ -81,7 +87,6 @@ atom_pair_for_bond_distance_printout = 1
 # and the opposite and no-field case will be included.
 # THIS OVERRIDES THE EEF USED IN THE NEB CALCULATION.
 # Uncomment the following line to specify your own electric field, or leave it as None to use the NEB eef if present.
-# user_eef = (0.0, 0.0, 0.01)
 user_eef = None  # (0.0, 0.0, 0.01)
 
 # To get better resultion around the transition state, we'll identify the TS image (highest energy image)
@@ -117,7 +122,7 @@ combined_plots_y_prop_lists = {
 }
 
 plot_x_prop_list = [
-    "H47-O39 distance",
+    "C1-C14 distance",
     "Reaction coordinate",
 ]
 
