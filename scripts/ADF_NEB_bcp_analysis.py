@@ -7,7 +7,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
-import pandas as pd
 
 # This script is intended to be run on the results of a NEB calculation in AMS.
 # The script will create a series of single-point calculations for each image in the NEB calculation,
@@ -31,16 +30,16 @@ import pandas as pd
 
 # Define paths to previously created cp data CSV files in order to do statistical analysis
 csv_file_paths = [
-    "/Users/haiiro/NoSync/AMSPython/data/Cys_propane_near_TS_cp_info.csv",
-    "/Users/haiiro/NoSync/AMSPython/data/His_propane_near_TS_cp_info.csv",
-    "/Users/haiiro/NoSync/AMSPython/data/Tyr_propane_NEB_NF_cp_info.csv",
+    # "/Users/haiiro/NoSync/AMSPython/data/BCP_crossing_analysis/Cys_propane_near_TS_cp_info.csv",
+    # "/Users/haiiro/NoSync/AMSPython/data/BCP_crossing_analysis/His_propane_near_TS_cp_info.csv",
+    # "/Users/haiiro/NoSync/AMSPython/data/BCP_crossing_analysis/Tyr_propane_NEB_NF_cp_info.csv",
 ]
 # Define the path to the AMS job file
 ams_job_paths = ["/Users/haiiro/Dropbox/AMSPythonData/Cys_NEB_B3LYP/ams.rkf"]
 # To rerun on a previously processed file, set the restart_dill_path to the path of the dill file in the
 # working directory of the previous run. Otherwise, set to None, False, or ''.
 restart_dill_paths = [
-    "/Users/haiiro/Dropbox/AMSPythonData/workspaces/plams_workdir.022/ams/ams.dill",
+    '/Users/haiiro/NoSync/2025_AMSPythonData/plams_workdir.004/Cys_propane_near_TS/Cys_propane_near_TS.dill',
     # "/Users/haiiro/Dropbox/AMSPythonData/workspaces/plams_workdir.004/Cys_propane_near_TS/Cys_propane_near_TS.dill",
     # "/Users/haiiro/Dropbox/AMSPythonData/workspaces/plams_workdir_tyr/Tyr_propane_NEB_NF/Tyr_propane_NEB_NF.dill",
     # "/Users/haiiro/Dropbox/AMSPythonData/workspaces/plams_workdir.003/His_propane_near_TS/His_propane_near_TS.dill",
@@ -1202,20 +1201,20 @@ def process_results(jobs, atom_pairs, path, prop_list, x_prop_list, unrestricted
     ########################################################################################
 
     # We'll save results to a single CSV file in the results_dir
-    total_cp_data = []
-    for job in jobs.children:
-        cp_data = get_bcp_properties(job, atom_pairs, unrestricted=unrestricted)
-        total_cp_data.extend(cp_data)
+    # total_cp_data = []
+    # for job in jobs.children:
+    #     cp_data = get_bcp_properties(job, atom_pairs, unrestricted=unrestricted)
+    #     total_cp_data.extend(cp_data)
 
-    write_csv(total_cp_data, path)
+    # write_csv(total_cp_data, path)
 
-    generate_plots(
-        total_cp_data,
-        prop_list,
-        x_prop_list,
-        os.path.dirname(path),
-        combined_plots_y_prop_lists,
-    )
+    # generate_plots(
+    #     total_cp_data,
+    #     prop_list,
+    #     x_prop_list,
+    #     os.path.dirname(path),
+    #     combined_plots_y_prop_lists,
+    # )
 
     if len(densf_bb_atom_numbers) > 0:
         # with ThreadPoolExecutor(max_workers=num_cores) as executor:
@@ -1298,9 +1297,19 @@ def read_simple_csv(csv_path):
     return cp_data
 
 
-def prepare_bcp_crossing_df(df_full, rxn_coord_name, use_theta_phi_crossings=False, use_spin_crossings=False, sys_whitelist=[], eef_whitelist=[]):    
+def prepare_bcp_crossing_df(
+    df_full,
+    rxn_coord_name,
+    use_theta_phi_crossings=False,
+    use_spin_crossings=False,
+    use_spin_delta_e_r=False,
+    sys_whitelist=[],
+    eef_whitelist=[],
+):
     from scipy.interpolate import interp1d
-    
+
+    ### BEGIN HELPER FUNCTIONS ###
+
     # Step 2: Create nested dict of BCP interpolations
     def prepare_bcp_interpolations(df_full, rxn_coord_name, system_eef_pairs):
         # First, identify float columns that aren't the reaction coordinate
@@ -1312,18 +1321,20 @@ def prepare_bcp_crossing_df(df_full, rxn_coord_name, use_theta_phi_crossings=Fal
 
         # For each system-EEF pair
         for system_eef in system_eef_pairs:
-            system, eef = system_eef.split('_')
+            system, eef = system_eef.split("_")
             # Get data for this system
-            system_mask = (df_full['SYSTEM'] == system) & (df_full['EEF'].astype(str) == eef)
+            system_mask = (df_full["SYSTEM"] == system) & (
+                df_full["EEF"].astype(str) == eef
+            )
             system_data = df_full[system_mask]
 
             # Initialize dict for this system
             bcp_interps[system_eef] = {}
 
             # For each unique BCP in this system
-            for atoms in system_data['ATOMS'].unique():
+            for atoms in system_data["ATOMS"].unique():
                 # Get data for this BCP
-                bcp_mask = system_data['ATOMS'] == atoms
+                bcp_mask = system_data["ATOMS"] == atoms
                 bcp_data = system_data[bcp_mask]
 
                 # Initialize dict for this BCP's properties
@@ -1338,42 +1349,49 @@ def prepare_bcp_crossing_df(df_full, rxn_coord_name, use_theta_phi_crossings=Fal
                     x = x[sort_idx]
                     y = y[sort_idx]
                     # Create interpolation
-                    interp = interp1d(x, y, kind='linear')
+                    interp = interp1d(x, y, kind="linear")
                     bcp_interps[system_eef][atoms][prop] = interp
-        
+
         return bcp_interps
 
     # Step 3: Find BCP crossing points for each system
-    def identify_all_system_crossings(bcp_interps, system_eef_pairs, use_theta_phi_crossings=False, use_spin_crossings=False):
-        def identify_bcp_crossings(bcp_interps, system_eef_pairs, crossing_var_name='Rho'):
+    def identify_all_system_crossings(
+        bcp_interps,
+        system_eef_pairs,
+        use_theta_phi_crossings=False,
+        use_spin_crossings=False,
+    ):
+        def identify_bcp_crossings(
+            bcp_interps, system_eef_pairs, crossing_var_name="Rho"
+        ):
             system_crossings = {}
 
             for system_eef in system_eef_pairs:
                 system_crossings[system_eef] = {}
-                
+
                 # Get all BCPs for this system
                 bcps = list(bcp_interps[system_eef].keys())
-                
+
                 # For each pair of BCPs
                 for i, bcp1 in enumerate(bcps):
-                    for bcp2 in bcps[i+1:]:
+                    for bcp2 in bcps[i + 1 :]:
                         # Get Rho interpolations for both BCPs
                         rho1 = bcp_interps[system_eef][bcp1][crossing_var_name]
                         rho2 = bcp_interps[system_eef][bcp2][crossing_var_name]
-                        
+
                         # Get the domain where both interpolations are valid
                         x_min = max(rho1.x[0], rho2.x[0])
                         x_max = min(rho1.x[-1], rho2.x[-1])
-                        
+
                         # Create dense sampling of points in this domain
                         x_vals = np.linspace(x_min, x_max, 1000)
                         y1 = rho1(x_vals)
                         y2 = rho2(x_vals)
-                        
+
                         # Find where the difference changes sign (crossing points)
                         diff = y1 - y2
                         cross_indices = np.where((diff[:-1] * diff[1:]) < 0)[0]
-                        
+
                         # If there's a crossing
                         if len(cross_indices) > 0:
                             # For each crossing (there might be multiple)
@@ -1383,183 +1401,771 @@ def prepare_bcp_crossing_df(df_full, rxn_coord_name, use_theta_phi_crossings=Fal
                                 x1 = x_vals[idx + 1]
                                 y0 = diff[idx]
                                 y1 = diff[idx + 1]
-                                x_cross = x0 - y0 * (x1 - x0)/(y1 - y0)
-                                
+                                x_cross = x0 - y0 * (x1 - x0) / (y1 - y0)
+
                                 # Create BCP_CROSSING key (sorted ATOMS values with underscore)
-                                bcp_crossing = '_'.join(sorted([bcp1, bcp2]))
-                                
+                                bcp_crossing = "_".join(sorted([bcp1, bcp2]))
+
                                 # Store the crossing point
                                 system_crossings[system_eef][bcp_crossing] = x_cross
-            
+
             return system_crossings
-        
+
         all_system_crossings = {}
-        vars = ['Rho'] + (["Theta", "Phi"] if use_theta_phi_crossings else [])
+        vars = ["Rho"] + (["Theta", "Phi"] if use_theta_phi_crossings else [])
         for var in vars:
-            for spin in [''] + (['_A', '_B'] if use_spin_crossings else []):
+            for spin in [""] + (["_A", "_B"] if use_spin_crossings else []):
                 if any(c.endswith(spin) for c in df_full.columns):
                     var_Str = var + spin
-                    all_system_crossings[var_Str] = identify_bcp_crossings(bcp_interps, system_eef_pairs, crossing_var_name=var_Str)
-                    
+                    all_system_crossings[var_Str] = identify_bcp_crossings(
+                        bcp_interps, system_eef_pairs, crossing_var_name=var_Str
+                    )
+
         return all_system_crossings
 
     # Step 4: Find common crossings and create ordered dicts
     def get_common_crossing_bcp_order(all_system_crossings, system_eef_pairs):
         # Find crossings that occur in all systems
         first_var_system_key = list(all_system_crossings.keys())[0]
-        all_crossings = set(all_system_crossings[first_var_system_key][system_eef_pairs[0]].keys())
+        all_crossings = set(
+            all_system_crossings[first_var_system_key][system_eef_pairs[0]].keys()
+        )
         for var_systems in all_system_crossings.values():
             for system_eef in system_eef_pairs:
                 all_crossings &= set(var_systems[system_eef].keys())
-        
+
         # Order crossings by their R value in the first system
         first_system = system_eef_pairs[0]
         ordered_crossings = sorted(
             all_crossings,
-            key=lambda x: all_system_crossings[first_var_system_key][first_system][x]
+            key=lambda x: all_system_crossings[first_var_system_key][first_system][x],
         )
-        
+
         # Create crossing_order dict
         crossing_order = {
             crossing: idx for idx, crossing in enumerate(ordered_crossings)
         }
-        
+
         # Get unique BCPs involved in these crossings
         unique_bcps = set()
         for crossing in all_crossings:
-            bcp1, bcp2 = crossing.split('_')
+            bcp1, bcp2 = crossing.split("_")
             unique_bcps.add(bcp1)
             unique_bcps.add(bcp2)
-        
+
         # Create ordered list of BCPs
         ordered_bcps = sorted(unique_bcps)
-        
+
         # Create bcp_order dict
-        bcp_order = {
-            bcp: idx for idx, bcp in enumerate(ordered_bcps)
-        }
-        
+        bcp_order = {bcp: idx for idx, bcp in enumerate(ordered_bcps)}
+
         return ordered_crossings, crossing_order, ordered_bcps, bcp_order
+
+    # Step 5: Create output DataFrame with all properties
+    def generate_dataframe(
+        system_eef_pairs,
+        bcp_interps,
+        all_system_crossings,
+        ordered_crossings,
+        ordered_bcps,
+        use_theta_phi_crossings=False,
+        use_spin_crossings=False,
+        use_spin_delta_e_r=use_spin_delta_e_r
+    ):
+        rows = []
+
+        for system_eef in system_eef_pairs:
+            system, eef = system_eef.split("_")
+
+            # Get first BCP to find E_TS and R_TS (all BCPs share same energy values)
+            first_bcp = ordered_bcps[0]
+            energy_interp = bcp_interps[system_eef][first_bcp]["Molecular bond energy"]
+            x_vals = np.linspace(energy_interp.x[0], energy_interp.x[-1], 1000)
+            y_vals = energy_interp(x_vals)
+            max_idx = np.argmax(y_vals)
+            R_TS = x_vals[max_idx]
+            E_TS = y_vals[max_idx]
+
+            # For each crossing in the ordered list
+            for bcp_crossing in ordered_crossings:
+                row = {
+                    "SYSTEM": system,
+                    "EEF": np.float64(eef),
+                    "BCP_CROSSING": bcp_crossing,
+                }
+
+                # Get R and E at crossing
+                R = all_system_crossings["Rho"][system_eef][bcp_crossing]
+                E = energy_interp(R)
+
+                # Calculate ∆E_TS and ∆R_TS
+                row["$\\Delta E_{{\\rm{{{TS}}}}}$"] = E_TS - E
+                row["$\\Delta R_{{\\rm{{{TS}}}}}$"] = R_TS - R
+
+                # Get rho value at crossing
+                bcp1, bcp2 = bcp_crossing.split("_")
+                rho_interp = bcp_interps[system_eef][bcp1]["Rho"]
+                row["$\\rho$"] = np.float64(rho_interp(R))
+
+                # Calculate ∆rho_k for all BCPs
+                for k, bcp_k in enumerate(ordered_bcps):
+                    key = f"$\\Delta \\rho_{{\\rm{{{bcp_k}}}}}$"
+                    if bcp_k in bcp_crossing:
+                        row[key] = np.float64(0.0)
+                    else:
+                        rho_k_interp = bcp_interps[system_eef][bcp_k]["Rho"]
+                        rho_k = rho_k_interp(R)
+                        row[key] = row["$\\rho$"] - rho_k
+
+                # Get all bond distances
+                distance_cols = [
+                    col
+                    for col in bcp_interps[system_eef][first_bcp].keys()
+                    if col.endswith(" distance")
+                ]
+                for dist_col in distance_cols:
+                    bcp_name = dist_col.replace(" distance", "")
+                    dist_interp = bcp_interps[system_eef][first_bcp][dist_col]
+                    row[f"$d_{{\\rm{{{bcp_name}}}}}$"] = np.float64(dist_interp(R))
+
+                # Add theta/phi crossing information if requested
+                if use_theta_phi_crossings:
+                    if "Theta" in all_system_crossings:
+                        R_theta = all_system_crossings["Theta"][system_eef][
+                            bcp_crossing
+                        ]
+                        row["$\\Delta R_{TS_{\\theta}}$"] = R_TS - R_theta
+                    if "Phi" in all_system_crossings:
+                        R_phi = all_system_crossings["Phi"][system_eef][bcp_crossing]
+                        row["$\\Delta R_{TS_{\\phi}}$"] = R_TS - R_phi
+
+                # Add spin-resolved properties if present
+                if use_spin_crossings:
+                    for spin in ["_A", "_B"]:
+                        spin_str = spin.replace("_", "")
+                        if f"Rho{spin}" in all_system_crossings:
+                            R_spin = all_system_crossings[f"Rho{spin}"][system_eef][
+                                bcp_crossing
+                            ]
+                            if use_spin_delta_e_r:
+                                E_spin = energy_interp(R_spin)
+                                row[f"$\\Delta E_{{\\rm{{{spin_str},TS}}}}$"] = (
+                                    E_TS - E_spin
+                                )
+                                row[f"$\\Delta R_{{\\rm{{{spin_str},TS}}}}$"] = (
+                                    R_TS - R_spin
+                                )
+                            rho_spin_interp = bcp_interps[system_eef][bcp1][
+                                f"Rho{spin}"
+                            ]
+                            row[f"$\\rho_{{\rm{{{spin_str}}}}}$"] = rho_spin_interp(
+                                R_spin
+                            )
+
+                            # Calculate ∆rho_k for spin component
+                            for k, bcp_k in enumerate(ordered_bcps):
+                                rho_k_spin_interp = bcp_interps[system_eef][bcp_k][
+                                    f"Rho{spin}"
+                                ]
+                                rho_k_spin = rho_k_spin_interp(R_spin)
+                                row[
+                                    f"$\\Delta \\rho_{{\\rm{{{spin_str},{bcp_k}}}}}$"
+                                ] = (row[f"$\\rho_{{\rm{{{spin_str}}}}}$"] - rho_k_spin)
+
+                rows.append(row)
+
+        # Create DataFrame from rows
+        return pd.DataFrame(rows), rows
+
+    ### END HELPER FUNCTIONS ###
 
     # Step 1: Create sorted list of unique SYSTEM-EEF pairs
     # Create system_eef identifiers and get unique sorted list
     system_eef_pairs = sorted(
         set(f"{system}_{eef}" for system, eef in zip(df_full["SYSTEM"], df_full["EEF"]))
     )
-    
+
     # Apply whitelists if provided
     if sys_whitelist:
-        system_eef_pairs = [s for s in system_eef_pairs if s.split('_')[0] in sys_whitelist]
+        system_eef_pairs = [
+            s for s in system_eef_pairs if s.split("_")[0] in sys_whitelist
+        ]
     if eef_whitelist:
-        system_eef_pairs = [s for s in system_eef_pairs if s.split('_')[1] in eef_whitelist]
+        system_eef_pairs = [
+            s for s in system_eef_pairs if s.split("_")[1] in eef_whitelist
+        ]
 
     # Step 2: Prepare BCP interpolations
     bcp_interps = prepare_bcp_interpolations(df_full, rxn_coord_name, system_eef_pairs)
 
     # Step 3: Find BCP rho crossings for each system (and each spin if present) (and theta and phi crossings if requested)
-    all_system_crossings = identify_all_system_crossings(bcp_interps, system_eef_pairs, use_theta_phi_crossings=use_theta_phi_crossings, use_spin_crossings=use_spin_crossings)
-    
+    all_system_crossings = identify_all_system_crossings(
+        bcp_interps,
+        system_eef_pairs,
+        use_theta_phi_crossings=use_theta_phi_crossings,
+        use_spin_crossings=use_spin_crossings,
+    )
+
     # Step 4: Find common crossings and create ordered dicts
-    ordered_crossings, crossing_order, ordered_bcps, bcp_order = get_common_crossing_bcp_order(all_system_crossings, system_eef_pairs)
-    
-    # Step 6: Create output DataFrame with all properties
-    rows = []
-    
-    for system_eef in system_eef_pairs:
-        system, eef = system_eef.split('_')
-        
-        # Get first BCP to find E_TS and R_TS (all BCPs share same energy values)
-        first_bcp = ordered_bcps[0]
-        energy_interp = bcp_interps[system_eef][first_bcp]['Molecular bond energy']
-        x_vals = np.linspace(energy_interp.x[0], energy_interp.x[-1], 1000)
-        y_vals = energy_interp(x_vals)
-        max_idx = np.argmax(y_vals)
-        R_TS = x_vals[max_idx]
-        E_TS = y_vals[max_idx]
-        
-        # For each crossing in the ordered list
-        for bcp_crossing in ordered_crossings:
-            row = {
-                'SYSTEM': system,
-                'EEF': int(eef),
-                'BCP_CROSSING': bcp_crossing
-            }
-            
-            # Get R and E at crossing
-            R = all_system_crossings['Rho'][system_eef][bcp_crossing]
-            E = energy_interp(R)
-            
-            # Calculate ∆E_TS and ∆R_TS
-            row['\\Delta E_{TS}'] = E_TS - E
-            row['\\Delta R_{TS}'] = R_TS - R
-            
-            # Get rho value at crossing
-            bcp1, bcp2 = bcp_crossing.split('_')
-            rho_interp = bcp_interps[system_eef][bcp1]['Rho']
-            row['\\rho'] = np.float64(rho_interp(R))
-            
-            # Calculate ∆rho_k for all BCPs
-            for k, bcp_k in enumerate(ordered_bcps):
-                key = f'\\Delta \\rho_{{{bcp_k}}}'
-                if bcp_k in bcp_crossing:
-                    row[key] = np.float64(0.0)
-                else:
-                    rho_k_interp = bcp_interps[system_eef][bcp_k]['Rho']
-                    rho_k = rho_k_interp(R)
-                    row[key] = row['\\rho'] - rho_k
-            
-            # Get all bond distances
-            distance_cols = [col for col in bcp_interps[system_eef][first_bcp].keys() 
-                           if col.endswith(' distance')]
-            for dist_col in distance_cols:
-                bcp_name = dist_col.replace(' distance', '')
-                dist_interp = bcp_interps[system_eef][first_bcp][dist_col]
-                row[f'd_{{{bcp_name}}}'] = np.float64(dist_interp(R))
-            
-            # Add theta/phi crossing information if requested
-            if use_theta_phi_crossings:
-                if 'Theta' in all_system_crossings:
-                    R_theta = all_system_crossings['Theta'][system_eef][bcp_crossing]
-                    row['\\Delta R_{TS_{\\theta}}'] = R_TS - R_theta
-                if 'Phi' in all_system_crossings:
-                    R_phi = all_system_crossings['Phi'][system_eef][bcp_crossing]
-                    row['\\Delta R_{TS_{\\phi}}'] = R_TS - R_phi
-            
-            # Add spin-resolved properties if present
-            if use_spin_crossings:
-                for spin in ['_A', '_B']:
-                    if f'Rho{spin}' in all_system_crossings:
-                        R_spin = all_system_crossings[f'Rho{spin}'][system_eef][bcp_crossing]
-                        E_spin = energy_interp(R_spin)
-                        row[f'\\Delta E_{{TS{spin}}}'] = E_TS - E_spin
-                        row[f'\\Delta R_{{TS{spin}}}'] = R_TS - R_spin
-                        rho_spin_interp = bcp_interps[system_eef][bcp1][f'Rho{spin}']
-                        row[f'\\rho{spin}'] = rho_spin_interp(R_spin)
-                        
-                        # Calculate ∆rho_k for spin component
-                        for k, bcp_k in enumerate(ordered_bcps):
-                            rho_k_spin_interp = bcp_interps[system_eef][bcp_k][f'Rho{spin}']
-                            rho_k_spin = rho_k_spin_interp(R_spin)
-                            row[f'\\Delta \\rho_{{{k}{spin}}}'] = row[f'\\rho{spin}'] - rho_k_spin
-            
-            rows.append(row)
-    
-    # Create DataFrame from rows
-    df = pd.DataFrame(rows)
+    ordered_crossings, crossing_order, ordered_bcps, bcp_order = (
+        get_common_crossing_bcp_order(all_system_crossings, system_eef_pairs)
+    )
 
-    return df
+    # Step 5: Create output DataFrame with all properties
+    df, rows = generate_dataframe(
+        system_eef_pairs,
+        bcp_interps,
+        all_system_crossings,
+        ordered_crossings,
+        ordered_bcps,
+        use_theta_phi_crossings=use_theta_phi_crossings,
+        use_spin_crossings=use_spin_crossings,
+    )
+
+    return df, rows
 
 
-def statistical_analysis(cp_data):
+def statistical_analysis(
+    cp_data,
+    output_dir
+):
     """
     Here, we'll perform some statistical analysis on the data.
-    Early analysis from the plots revealed that the bond critical points' (BCPs) rho, theta, and phi values
-    will cross as the reaction progresses
+    Early analysis from the plots revealed that the bond critical points' (BCPs) rho, theta, and phi values will cross as the reaction progresses.
+    We want to better understand how these crossings correlate with the reaction coordinate and energy.
     """
 
-    # First, convert the data to a pandas DataFrame
+    import pandas as pd
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.decomposition import PCA
+    from boruta import BorutaPy
+    from sklearn.ensemble import RandomForestRegressor
+    
+    use_spin_delta_e_r = False
+    
+    ### BEGIN HELPER FUNCTIONS ###
 
-    cp_data_by_col = {k: [d.get(k, None) for d in cp_data] for k in cp_data[0].keys()}
+    # Generate correlations matrices from a provided DataFrame
+    def create_correlation_matrix(df: pd.DataFrame, output_dir: str) -> None:
+        """
+        Creates and saves correlation matrix plots along with system and BCP crossing information.
+        LaTeX rendering is enabled for column names. Annotations show r-squared * 100,
+        rounded to the tens place (-10 to 10).
+
+        Args:
+            df: Input DataFrame containing 'SYSTEM', 'EEF', and 'BCP_CROSSING' columns
+            output_dir: Directory to save outputs
+        """
+        # Enable LaTeX rendering
+        plt.rcParams.update(
+            {
+                "text.usetex": True,
+                "font.family": "serif",
+                "font.serif": ["Computer Modern Roman"],
+            }
+        )
+
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Generate system information
+        systems = (
+            df[["SYSTEM", "EEF"]]
+            .apply(lambda x: f"{x['SYSTEM']}_{x['EEF']}", axis=1)
+            .unique()
+        )
+        bcp_crossings = df["BCP_CROSSING"].unique()
+        
+        unique_sys = "+".join(df["SYSTEM"].unique().tolist())
+        if any("{A" in c or "{B" in c for c in df.columns):
+            unique_sys += "_spin"
+        if any("theta" in c or "phi" in c for c in df.columns):
+            unique_sys += "_directionality"
+
+        # Save system and BCP crossing information
+        with open(os.path.join(output_dir, f"system_info_{unique_sys}.txt"), "w") as f:
+            f.write("Systems:\n")
+            for system in sorted(systems):
+                f.write(f"{system}\n")
+            f.write("\nBCP Crossings:\n")
+            for bcp in sorted(bcp_crossings):
+                f.write(f"{bcp}\n")
+
+        # Create correlation matrix
+        # Remove non-numeric columns
+        numeric_df = df.select_dtypes(include=[np.number])
+        corr_matrix = numeric_df.corr()
+
+        # Create rounded r-squared values for annotations
+        annot_matrix = np.round(corr_matrix * 10)  # round to nearest 10
+
+        # Create correlation matrix plot
+        plt.figure(figsize=(12, 10))
+        sns.heatmap(
+            corr_matrix,
+            cmap="coolwarm",
+            center=0,
+            annot=annot_matrix,
+            fmt=".0f",  # use integers for annotation
+            square=True,
+            cbar_kws={"label": "Correlation Coefficient"},
+        )
+        plt.title(f"Correlation Matrix (systems: {unique_sys})")
+
+        # Rotate x-axis labels for better readability
+        plt.xticks(rotation=60, ha="right")
+        plt.yticks(rotation=0)
+
+        plt.tight_layout()
+        plt.savefig(
+            os.path.join(output_dir, f"correlation_matrix_{unique_sys}.png"),
+            dpi=300,
+            bbox_inches="tight",
+        )
+        plt.close()
+
+        # Save correlation matrix as CSV
+        corr_matrix.to_csv(os.path.join(output_dir, f"correlation_matrix_{unique_sys}.csv"))
+
+        # Reset matplotlib parameters to default
+        plt.rcParams.update({"text.usetex": False, "font.family": "sans-serif"})
+
+    def perform_pca(
+        df: pd.DataFrame,
+        target_cols: list[str],
+        output_dir: str,
+        n_components: int = None,
+    ) -> tuple:
+        """
+        Performs PCA on features and creates visualization plots.
+
+        Args:
+            df: Input DataFrame containing 'SYSTEM', 'EEF', and 'BCP_CROSSING' columns
+            target_cols: List of numeric column indices to exclude from PCA (0-based)
+            output_dir: Directory to save outputs
+            n_components: Number of components for PCA (default=None for all)
+
+        Returns:
+            tuple: (PCA object, transformed features DataFrame)
+        """
+        # Enable LaTeX rendering
+        plt.rcParams.update(
+            {
+                "text.usetex": True,
+                "font.family": "serif",
+                "font.serif": ["Computer Modern Roman"],
+            }
+        )
+
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Get system information
+        systems = (
+            df[["SYSTEM", "EEF"]]
+            .apply(lambda x: f"{x['SYSTEM']}_{x['EEF']}", axis=1)
+            .unique()
+        )
+        bcp_crossings = df["BCP_CROSSING"].unique()
+        
+        unique_sys = "+".join(df["SYSTEM"].unique().tolist())
+        if any("{A" in c or "{B" in c for c in df.columns):
+            unique_sys += "_spin"
+        if any("theta" in c or "phi" in c for c in df.columns):
+            unique_sys += "_directionality"
+
+        # Save system and BCP crossing information
+        with open(os.path.join(output_dir, f"system_info_{unique_sys}.txt"), "w") as f:
+            f.write("Systems:\n")
+            for system in sorted(systems):
+                f.write(f"{system}\n")
+            f.write("\nBCP Crossings:\n")
+            for bcp in sorted(bcp_crossings):
+                f.write(f"{bcp}\n")
+
+        # Get numeric columns
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+
+        # Identify target and feature columns
+        feature_cols = [
+            col for col in numeric_cols if col not in target_cols
+        ]
+        X = df[feature_cols]
+
+        # Standardize the features
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+
+        # Perform PCA
+        pca = PCA(n_components=n_components)
+        X_pca = pca.fit_transform(X_scaled)
+
+        # Get variance ratios
+        var_ratio = pca.explained_variance_ratio_
+        cum_var_ratio = np.cumsum(var_ratio)
+
+        # Print variance explained
+        with open(os.path.join(output_dir, f"variance_explained_{unique_sys}.txt"), "w") as f:
+            f.write("Variance explained by each component:\n")
+            for i, var in enumerate(var_ratio):
+                f.write(f"PC{i+1}: {var:.4f} ({cum_var_ratio[i]:.4f} cumulative)\n")
+
+        # 1. Scree plot
+        plt.figure(figsize=(10, 6))
+        plt.plot(range(1, len(var_ratio) + 1), var_ratio, "bo-")
+        plt.plot(range(1, len(var_ratio) + 1), cum_var_ratio, "ro-")
+        plt.xlabel("Principal Component")
+        plt.ylabel("Proportion of Variance Explained")
+        plt.title(f"Scree Plot (systems: {unique_sys})")
+        plt.legend(["Individual", "Cumulative"])
+        plt.grid(True)
+        plt.savefig(
+            os.path.join(output_dir, f"scree_plot_{unique_sys}.png"), dpi=300, bbox_inches="tight"
+        )
+        plt.close()
+
+        # 2. Loading plot with circle
+        plt.figure(figsize=(12, 8))
+        loadings = pca.components_
+        loading_matrix = loadings[:2].T  # Take first two PCs
+
+        # Plot arrows
+        for i, (feature, loading) in enumerate(zip(feature_cols, loading_matrix)):
+            plt.arrow(
+                0,
+                0,
+                loading[0],
+                loading[1],
+                head_width=0.02,
+                head_length=0.02,
+                fc="blue",
+                ec="blue",
+            )
+            plt.text(
+                loading[0] * 1.1, loading[1] * 1.1, feature, ha="center", va="center"
+            )
+
+        # Add circle
+        circle = plt.Circle((0, 0), 1, fill=False, linestyle="--", color="gray")
+        plt.gca().add_patch(circle)
+        plt.axis("equal")
+        plt.xlabel(f"PC1 ({var_ratio[0]:.2%} variance explained)")
+        plt.ylabel(f"PC2 ({var_ratio[1]:.2%} variance explained)")
+        plt.title(f"PCA Loading Plot (systems: {unique_sys})")
+        plt.grid(True)
+        plt.savefig(
+            os.path.join(output_dir, f"loading_plot_{unique_sys}.png"), dpi=300, bbox_inches="tight"
+        )
+        plt.close()
+
+        # 3. Score plot
+        plt.figure(figsize=(10, 8))
+
+        # Get unique systems, BCPs, and EEFs
+        unique_systems = df["SYSTEM"].unique()
+        unique_bcps = df["BCP_CROSSING"].unique()
+        unique_eefs = sorted(df["EEF"].unique())  # sort EEF values
+
+        # Create marker and color mappings
+        markers = ["o", "s", "^", "v", "D", "p", "h8"]  # add more if needed
+        system_markers = dict(zip(unique_systems, markers[: len(unique_systems)]))
+
+        # Use a colormap suitable for the number of BCP crossings (fill colors)
+        colors = plt.cm.tab10(np.linspace(0, 1, len(unique_bcps)))
+        bcp_colors = dict(zip(unique_bcps, colors))
+
+        # Create edge color mapping for EEF values
+        edge_colors = plt.cm.viridis(np.linspace(0, 1, len(unique_eefs)))
+        eef_colors = dict(zip(unique_eefs, edge_colors))
+
+        # Plot each point with appropriate marker, fill color, and edge color
+        for system in unique_systems:
+            for bcp in unique_bcps:
+                for eef in unique_eefs:
+                    mask = (
+                        (df["SYSTEM"] == system)
+                        & (df["BCP_CROSSING"] == bcp)
+                        & (df["EEF"] == eef)
+                    )
+                    if mask.any():  # only plot if this combination exists
+                        plt.scatter(
+                            X_pca[mask, 0],
+                            X_pca[mask, 1],
+                            marker=system_markers[system],
+                            c=[bcp_colors[bcp]],
+                            s=100,  # adjust point size as needed
+                            linewidth=1.5,  # fixed edge width
+                            edgecolor=eef_colors[eef],
+                        )
+
+        # Format the variance explained percentages properly for LaTeX
+        pc1_var = f"{var_ratio[0]*100:.1f}\\%"
+        pc2_var = f"{var_ratio[1]*100:.1f}\\%"
+
+        plt.xlabel(f"PC1 ({pc1_var} variance explained)")
+        plt.ylabel(f"PC2 ({pc2_var} variance explained)")
+        plt.title(f"PCA Score Plot (systems: {unique_sys})")
+        plt.grid(True)
+
+        # Create custom legends
+        # Legend for BCP crossings (fill colors)
+        bcp_legend_elements = [
+            plt.Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="w",
+                markerfacecolor=color,
+                label=bcp,
+                markersize=10,
+            )
+            for bcp, color in bcp_colors.items()
+        ]
+
+        # Legend for systems (markers)
+        system_legend_elements = [
+            plt.Line2D(
+                [0], [0], marker=marker, color="gray", label=system, markersize=10
+            )
+            for system, marker in system_markers.items()
+        ]
+
+        # Legend for EEF values (edge colors)
+        eef_legend_elements = [
+            plt.Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="w",
+                markerfacecolor="w",
+                label=f"{int(eef)}",
+                markersize=10,
+                markeredgewidth=2,
+                markeredgecolor=color,
+            )
+            for eef, color in eef_colors.items()
+        ]
+
+        # Add three separate legends
+        first_legend = plt.legend(
+            handles=bcp_legend_elements,
+            title="BCP Crossings",
+            bbox_to_anchor=(1.2, 1),
+            loc="upper right",
+        )
+        plt.gca().add_artist(first_legend)
+
+        second_legend = plt.legend(
+            handles=system_legend_elements,
+            title="Systems",
+            bbox_to_anchor=(1.2, 0.15),
+            loc="lower right",
+        )
+        plt.gca().add_artist(second_legend)
+
+        plt.legend(
+            handles=eef_legend_elements,
+            title="EEF Values",
+            bbox_to_anchor=(1.2, 0.0),
+            loc="lower right",
+        )
+
+        plt.tight_layout()
+        plt.savefig(
+            os.path.join(output_dir, f"score_plot_{unique_sys}.png"), dpi=300, bbox_inches="tight"
+        )
+        plt.close()
+
+        # 4. Loadings heatmap
+        plt.figure(figsize=(12, 8))
+        num_pcs = min(5, len(loadings))  # Show first 5 PCs or all if less than 5
+        loadings_df = pd.DataFrame(
+            loadings[:num_pcs].T,
+            columns=[f"PC{i+1}" for i in range(num_pcs)],
+            index=feature_cols,
+        )
+        sns.heatmap(loadings_df, cmap="RdBu_r", center=0, annot=True, fmt=".2f")
+        plt.title(f"PCA Loadings Heatmap (systems: {unique_sys})")
+        plt.tight_layout()
+        plt.savefig(
+            os.path.join(output_dir, f"loadings_heatmap_{unique_sys}.png"),
+            dpi=300,
+            bbox_inches="tight",
+        )
+        plt.close()
+
+        # Save loadings to CSV
+        loadings_df.to_csv(os.path.join(output_dir, f"pca_loadings_{unique_sys}.csv"))
+
+        # Create DataFrame with transformed features
+        pca_df = pd.DataFrame(
+            X_pca, columns=[f"PC{i+1}" for i in range(pca.n_components_)], index=X.index
+        )
+
+        # Reset matplotlib parameters to default
+        plt.rcParams.update({"text.usetex": False, "font.family": "sans-serif"})
+
+        return pca, pca_df
+
+    def perform_boruta(df: pd.DataFrame,
+                    target_col: int,
+                    output_dir: str,
+                    max_iter: int = 100,
+                    perc: int = 100,
+                    alpha: float = 0.05,
+                    random_state: int = 42) -> pd.DataFrame:
+        """
+        Performs Boruta feature selection with adjustable sensitivity parameters.
+        
+        Args:
+            df Input DataFrame
+            target_col: Index of target column among numeric columns
+            max_iter: Maximum number of iterations for Boruta algorithm
+            perc: Percentile of shadow features maximal importance for comparison
+                Higher values = more strict feature selection (default 100)
+            alpha: P-value threshold for feature importance (default 0.05)
+                Lower values = more strict feature selection
+            random_state: Random state for reproducibility
+        
+        Returns:
+            DataFrame with selected features and target column
+        """
+        # Get numeric columns
+        numeric_df = df.select_dtypes(include=[np.number])
+        feature_cols = [col for i, col in enumerate(numeric_df.columns) if i != target_col]
+        target_name = numeric_df.columns[target_col]
+        
+        unique_sys = "+".join(df["SYSTEM"].unique().tolist())
+        if any("{A" in c or "{B" in c for c in df.columns):
+            unique_sys += "_spin"
+        if any("theta" in c or "phi" in c for c in df.columns):
+            unique_sys += "_directionality"
+        
+        print(f"Performing Boruta feature selection for target column: {target_name}")
+        
+        # Prepare X and y
+        X = numeric_df[feature_cols]
+        y = numeric_df[target_name]
+        
+        # Initialize Random Forest classifier
+        rf = RandomForestRegressor(n_jobs=-1, random_state=random_state)
+        
+        # Initialize and run Boruta
+        boruta = BorutaPy(rf, n_estimators='auto',
+                        max_iter=max_iter,
+                        perc=perc,
+                        alpha=alpha,
+                        random_state=random_state)
+        
+        # Fit Boruta
+        boruta.fit(X.values, y.values)
+        
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
+        # Create detailed results file
+        with open(os.path.join(output_dir, f'boruta_results_{unique_sys}.txt'), 'w') as f:
+            # Write parameters
+            f.write("Boruta Feature Selection Analysis\n")
+            f.write("================================\n\n")
+            f.write("Parameters:\n")
+            f.write(f"- Maximum iterations: {max_iter}\n")
+            f.write(f"- Percentile threshold: {perc}\n")
+            f.write(f"- Significance level (alpha): {alpha}\n")
+            f.write(f"- Target variable: {target_name}\n\n")
+            
+            # Write feature selection results
+            selected_features = X.columns[boruta.support_].tolist()
+            tentative_features = X.columns[boruta.support_weak_].tolist()
+            rejected_features = [feat for feat in X.columns 
+                            if feat not in selected_features + tentative_features]
+            
+            f.write("Selected Features:\n")
+            for feat in selected_features:
+                f.write(f"- {feat}\n")
+            f.write(f"\nTotal selected features: {len(selected_features)}\n\n")
+            
+            f.write("Tentative Features:\n")
+            for feat in tentative_features:
+                f.write(f"- {feat}\n")
+            f.write(f"\nTotal tentative features: {len(tentative_features)}\n\n")
+            
+            f.write("Rejected Features:\n")
+            for feat in rejected_features:
+                f.write(f"- {feat}\n")
+            f.write(f"\nTotal rejected features: {len(rejected_features)}\n\n")
+            
+            # Write feature rankings with importance scores
+            f.write("Feature Rankings and Importance Scores:\n")
+            f.write("(Rankings: lower = more important, 1 is best)\n")
+            f.write("(Decision: 'Confirmed', 'Tentative', or 'Rejected')\n\n")
+            
+            # Get feature importance scores
+            ranks = pd.Series(boruta.ranking_, index=X.columns)
+            
+            # Create decision mapping
+            decision_map = {}
+            for feat in X.columns:
+                if feat in selected_features:
+                    decision_map[feat] = 'Confirmed'
+                elif feat in tentative_features:
+                    decision_map[feat] = 'Tentative'
+                else:
+                    decision_map[feat] = 'Rejected'
+            
+            # Sort by ranking and write
+            for feat, rank in ranks.sort_values().items():
+                f.write(f"Feature: {feat}\n")
+                f.write(f"- Ranking: {rank}\n")
+                f.write(f"- Decision: {decision_map[feat]}\n\n")
+        
+        # First create list of columns we want to keep
+        columns_to_keep = ['SYSTEM', 'BCP_CROSSING', target_name]
+        if 'EEF' not in selected_features + tentative_features:
+            columns_to_keep.append('EEF')
+        
+        # Add the features and target
+        columns_to_keep.extend(selected_features +
+                            tentative_features)
+        
+        # Create the new DataFrame in one operation
+        selected_tentative_df = df[columns_to_keep].copy()
+        
+        # First create list of columns we want to keep
+        columns_to_keep = ['SYSTEM', 'BCP_CROSSING', target_name]
+        if 'EEF' not in selected_features:
+            columns_to_keep.append('EEF')
+        
+        # Add the features and target
+        columns_to_keep.extend(selected_features)
+        
+        # Create the new DataFrame in one operation
+        selected_df = df[columns_to_keep].copy()
+        
+        # Save feature lists to separate files
+        pd.Series(selected_features).to_csv(
+            os.path.join(output_dir, f'selected_features_{unique_sys}.csv'), index=False)
+        pd.Series(tentative_features).to_csv(
+            os.path.join(output_dir, f'tentative_features_{unique_sys}.csv'), index=False)
+        pd.Series(rejected_features).to_csv(
+            os.path.join(output_dir, f'rejected_features_{unique_sys}.csv'), index=False)
+        
+        # save selected and selected_tentative DataFrames to CSV
+        selected_df.to_csv(os.path.join(output_dir, f'selected_df_{unique_sys}.csv'), index=False)
+        selected_tentative_df.to_csv(os.path.join(output_dir, f'selected_tentative_df_{unique_sys}.csv'), index=False)
+        
+        return selected_df, selected_tentative_df, boruta
+    
+    ### END HELPER FUNCTIONS ###
+
+    # First, convert the data to a pandas DataFrame
+    # Get keys common to all dictionaries
+    all_keys = set(list(cp_data[0].keys()))
+    for d in cp_data[1:]:
+        all_keys &= set(list(d.keys()))
+
+    cp_data_by_col = {k: [d[k] for d in cp_data] for k in all_keys}
 
     df_full = pd.DataFrame(cp_data_by_col)
 
@@ -1572,9 +2178,91 @@ def statistical_analysis(cp_data):
     )
     df_full["SYSTEM"] = df_full["JOB_NAME"].apply(lambda x: x.split("_")[0])
 
-    df = prepare_bcp_crossing_df(
-        df_full, "H47-O39 distance", use_theta_phi_crossings=False, use_spin_crossings=False, sys_whitelist=["Cys"]
-    )
+    # get unique SYSTEM values
+    sys_list = df_full["SYSTEM"].unique().tolist()
+    sys_whitelists = [[sys] for sys in sys_list] + [sys_list]
+    directionality_spin = [False, True]
+    alpha_list = [0.01, 0.025, 0.05, 0.1, 0.15, 0.2]
+    perc_list = [100, 95, 90, 85, 80]
+    
+    alpha_list = [0.01, 0.025, 0.05, 0.1]
+    perc_list = [100, 95, 90]
+    
+    target_col = '$\\Delta E_{{\\rm{{{TS}}}}}$'
+    
+    for sys_whitelist in sys_whitelists:
+        for use_theta_phi_crossings in directionality_spin:
+            for use_spin_crossings in directionality_spin:
+                print(f"\nsys_whitelist: {sys_whitelist}, use_theta_phi_crossings: {use_theta_phi_crossings}, use_spin_crossings: {use_spin_crossings}")
+                
+                df, rows = prepare_bcp_crossing_df(
+                    df_full,
+                    "H47-O39 distance",
+                    use_theta_phi_crossings=use_theta_phi_crossings,
+                    use_spin_crossings=use_spin_crossings,
+                    sys_whitelist=sys_whitelist
+                )
+                
+                
+                # Get list of unique SYSTEM values
+                systems = "_".join(df["SYSTEM"].unique().tolist())
+                eefs = df["EEF"].unique().tolist()
+                spin_string = "__spin" if use_spin_crossings else ""
+                directionality_string = "__directionality" if use_theta_phi_crossings else ""
+
+                system_string = f"{systems}{spin_string}{directionality_string}"
+                
+                # save the DataFrame to CSV
+                # make dirs
+                os.makedirs(f"{output_dir}/{system_string}", exist_ok=True)
+                df.to_csv(f"{output_dir}/{system_string}/{system_string}_bcp_crossing_data.csv", index=False)
+                
+                print(f"system_string: {system_string}\neefs: {eefs}")
+
+                # First with all features
+                create_correlation_matrix(
+                    df, f"{output_dir}/{system_string}/all_features/correlation_analysis"
+                )
+                pca, pca_df = perform_pca(
+                    df, [target_col], f"{output_dir}/{system_string}/all_features/pca_analysis"
+                )
+                
+                do_break = False
+                check_num_features = 7
+                if use_spin_crossings and use_spin_delta_e_r:
+                    check_num_features += 4
+                # Perform Boruta feature selection
+                for pi, perc in enumerate(perc_list):
+                    for ai, alpha in enumerate(alpha_list):
+                        print(f"System: {system_string}, perc: {perc}, alpha: {alpha}")
+                        
+                        boruta_string = f"perc_{perc}_alpha_{alpha}"
+                        
+                        selected_df, selected_tentative_df, boruta = perform_boruta(
+                            df, 1, f"{output_dir}/{system_string}/boruta_{boruta_string}", perc=perc, alpha=alpha
+                        )
+                        # continue if all independent variable features are rejected
+                        if len(selected_df.columns) > 4:
+                            create_correlation_matrix(
+                                selected_df, f"{output_dir}/{system_string}/boruta_{boruta_string}/selected_correlation_analysis"
+                            )
+                            pca, pca_df = perform_pca(
+                                selected_df, [target_col], f"{output_dir}/{system_string}/boruta_{boruta_string}/selected_pca_analysis"
+                            )
+                            
+                        if len(selected_tentative_df.columns) > len(selected_df.columns):
+                            create_correlation_matrix(
+                                selected_tentative_df, f"{output_dir}/{system_string}/boruta_{boruta_string}/selected_tentative_correlation_analysis"
+                            )
+                            pca, pca_df = perform_pca(
+                                selected_tentative_df, [target_col], f"{output_dir}/{system_string}/boruta_{boruta_string}/selected_tentative_pca_analysis"
+                            )
+                        
+                        if len(selected_df.columns) > check_num_features:
+                            do_break = True
+                            break
+                    if do_break:
+                        break
 
     return
 
@@ -1584,7 +2272,10 @@ if __name__ == "__main__":
         cp_data = []
         for csv_file_path in csv_file_paths:
             cp_data.extend(read_simple_csv(csv_file_path))
-        statistical_analysis(cp_data)
+        output_dir = os.path.dirname(csv_file_paths[0]) + "/analysis"
+        statistical_analysis(
+            cp_data, output_dir
+        )
     elif restart_dill_paths and len(restart_dill_paths) > 0:
         for restart_dill_path, atom_pairs in zip(restart_dill_paths, atom_pairs_list):
             test_post_processing_multiple_jobs(
