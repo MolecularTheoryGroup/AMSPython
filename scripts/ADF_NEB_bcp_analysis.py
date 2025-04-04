@@ -21,6 +21,9 @@ from concurrent.futures import ThreadPoolExecutor
 # Run with the command:
 # plams /path/to/ADF_NEB_bcp_analysis.py
 
+# The working directory will be placed in the directory from which you run the command.
+# Generated CSV and plot files will be placed adjacent to the specified input file (next to the AMS job file, or the dill file if restarting).
+
 ########################################################################################
 # USER SETTINGS: change the following parameters as needed
 ########################################################################################
@@ -29,6 +32,8 @@ from concurrent.futures import ThreadPoolExecutor
 # 1. Initial run on NEB output by pointing to the your-job.ams file directly (or if you don't have it, you can point to the output ams.rkf file, which is less preferred)
 # 2. You can restart using the "dill" file that is created inside the working directory of a previous run, which will use the previously run single-point calculations. This is useful for generating new sets of plots quickly
 # 3. You can run the script on previously processed CSV files to do statistical analysis or generate new plots.
+
+#### Run on one job at a time. It was initially intended to be able to run on multiple jobs, but in the course of development that has been temporarily broken.
 
 # Define the path to the AMS job file (`path/to/job.ams`), or if you don't have an ams file, use
 # the path to the ams.rkf result file. Set the dill and csv paths to be empty in order to have the script use the AMS job file input.
@@ -680,7 +685,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
     }
 
     for x_prop in x_prop_list:
-        for plot_name, y_prop_list in combined_plots_y_prop_lists.items():
+        for plot_name, y_prop_list in combined_y_prop_lists.items():
             log_print(
                 f"Plotting combined plots for {plot_name} vs {x_prop} for bond CPs"
             )
@@ -2327,6 +2332,7 @@ def statistical_analysis(
 
 if __name__ == "__main__":
     if csv_file_paths:
+        log_print("Performing statistical analysis on provided CSV files...")
         cp_data = []
         for csv_file_path in csv_file_paths:
             cp_data.extend(read_simple_csv(csv_file_path))
@@ -2335,10 +2341,12 @@ if __name__ == "__main__":
             cp_data, output_dir
         )
     elif restart_dill_paths and len(restart_dill_paths) > 0:
+        log_print("Performing post-processing on provided restart dill files...")
         for restart_dill_path, atom_pairs in zip(restart_dill_paths, atom_pairs_list):
             test_post_processing_multiple_jobs(
                 restart_dill_path, atom_pairs, unrestricted=False
             )
     else:
+        log_print("Running ADF NEB BCP analysis on provided job paths...")
         for job_path, atom_pairs in zip(ams_job_paths, atom_pairs_list):
             main(job_path, atom_pairs)
