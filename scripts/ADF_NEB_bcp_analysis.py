@@ -9,12 +9,9 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
 # This script is intended to be run on the results of a NEB calculation in AMS.
-# The script will create a series of single-point calculations for each image in the NEB calculation,
-# with the molecule from each image as the input geometry.
-# The script will also create three jobs for each image if the NEB calculation includes an electric field,
-# with the electric field set to the original field, opposite (reverse) field, and no field.
-# Then the script will extract from the output of the single point calculations information for bond
-# critical points for specified atom pairs.
+# The script will create a series of single-point calculations for each image in the NEB calculation, with the molecule from each image as the input geometry.
+# The script will also create three jobs for each image if the NEB calculation includes an electric field, with the electric field set to the original field, opposite (reverse) field, and no field.
+# Then the script will extract from the output of the single point calculations information for bond critical points for specified atom pairs.
 
 # Use KFBrowser in File->Expert Mode to see the contents of the .rkf file(s)
 
@@ -22,7 +19,7 @@ from concurrent.futures import ThreadPoolExecutor
 # https://www.scm.com/doc.2018/plams/components/components.html
 
 # Run with the command:
-# plams /path/to/NEB_bcp_analysis.py
+# plams /path/to/ADF_NEB_bcp_analysis.py
 
 ########################################################################################
 # USER SETTINGS: change the following parameters as needed
