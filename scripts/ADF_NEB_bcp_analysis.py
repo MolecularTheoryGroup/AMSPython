@@ -6,7 +6,7 @@ from math import sqrt, atan, floor, ceil
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
+# from concurrent.futures import ThreadPoolExecutor
 
 # This script is intended to be run on the results of a NEB calculation in AMS.
 # The script will create a series of single-point calculations for each image in the NEB calculation, with the molecule from each image as the input geometry.
