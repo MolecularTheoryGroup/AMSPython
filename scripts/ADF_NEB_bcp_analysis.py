@@ -136,7 +136,6 @@ plot_y_prop_list = [
 # This specifies properties to include in combined plots with rows for each y property and columns for each EEF type.
 # Additionally, the suffix " d/dx" causes the dy/dx derivative to be computed and plotted.
 combined_plots_y_prop_lists = {
-    "Molecular bond energy": ["Molecular bond energy"],
     "Rho": ["Molecular bond energy", "Rho"],
     "Rho d/dx": ["Molecular bond energy", "Rho d/dx"],
     "Angles": ["Molecular bond energy", "Theta", "Phi"],
