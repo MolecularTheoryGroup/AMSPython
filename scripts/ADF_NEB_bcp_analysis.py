@@ -13,16 +13,16 @@ from concurrent.futures import ThreadPoolExecutor
 # The script will also create three jobs for each image if the NEB calculation includes an electric field, with the electric field set to the original field, opposite (reverse) field, and no field.
 # Then the script will extract from the output of the single point calculations information for bond critical points for specified atom pairs.
 
-# Use KFBrowser in File->Expert Mode to see the contents of the .rkf file(s)
-
-# Documentation for PLAMS:
-# https://www.scm.com/doc.2018/plams/components/components.html
-
 # Run with the command:
 # plams /path/to/ADF_NEB_bcp_analysis.py
 
 # The working directory will be placed in the directory from which you run the command.
 # Generated CSV and plot files will be placed adjacent to the specified input file (next to the AMS job file, or the dill file if restarting).
+
+# Documentation for PLAMS:
+# https://www.scm.com/doc.2018/plams/components/components.html
+
+# Use KFBrowser in File->Expert Mode to see the contents of the .rkf file(s)
 
 ########################################################################################
 # USER SETTINGS: change the following parameters as needed
@@ -93,11 +93,9 @@ densf_bb_spacing = (
 # THIS OVERRIDES THE EEF USED IN THE NEB CALCULATION.
 # Uncomment the following line to specify your own electric field, or leave it as None to use the NEB eef if present.
 user_eef = None  # (0.0, 0.0, 0.01)
-
 # Need to convert electric field magnitude units. In the NEB rkf file, they're Ha/(e bohr), but in the
 # new jobs they need to be V/Angstrom. The conversion factor is 51.4220861908324.
 eef_conversion_factor = 51.4220861908324
-
 # Define the EEF pairs
 # eef_pairs = (("origEEF", eef_conversion_factor), ("revEEF", -eef_conversion_factor), ("noEEF", 0))
 eef_pairs = (("origEEF", eef_conversion_factor))
@@ -111,7 +109,6 @@ num_extra_images = 0
 # This then determines how many images to the left/right of the TS image to create. `num_extra_images` images will be created between each adjacent pair of images.
 # So "1" will result in `num_extra_images` images being added only between the TS image and its adjacent images,
 # while "3" will add `num_extra_images` between each image pair starting 3 images before the TS, etc.
-
 num_adjacent_extra_images = 2
 # Set `num_extra_images` to 0 to disable this feature.
 ##### end Extra interpolated single point settings #####
