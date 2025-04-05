@@ -69,18 +69,15 @@ atom_pairs_list = (  # one-based indices, same as shown in AMSView
 atom_pair_for_bond_distance_printout = 4
 
 ##### densf full grid settings #####
-
 # This script can also be used to create full 3d grids for each step along the NEB.
 # This is useful if Bondalyzer is to be used.
 # Configure the full grid settings below.
 # If no full grid is desired, leave densf_bb_atom_numbers as an empty list.
-
 densf_bb_atom_numbers = []
 densf_bb_padding = 5.0  # Angstroms
 densf_bb_spacing = (
     0.05  # Angstroms (densf "fine" is 0.05, "medium" is 0.1, "coarse" is 0.2)
 )
-
 ##### end densf full grid settings #####
 
 ##### EEF Settings #####
