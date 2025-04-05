@@ -106,7 +106,7 @@ num_extra_images = 0
 # This then determines how many images to the left/right of the TS image to create. `num_extra_images` images will be created between each adjacent pair of images.
 # So "1" will result in `num_extra_images` images being added only between the TS image and its adjacent images,
 # while "3" will add `num_extra_images` between each image pair starting 3 images before the TS, etc.
-num_adjacent_extra_images = 2
+extra_images_num_adjacent_images = 2
 # Set `num_extra_images` to 0 to disable this feature.
 ##### end Extra interpolated single point settings #####
 
@@ -1119,9 +1119,9 @@ def main(ams_job_path, atom_pairs):
     im_num = 0
     
     extra_image_nums = list(range(
-        highest_index_image - num_adjacent_extra_images,
-        highest_index_image + num_adjacent_extra_images
-    )) if num_adjacent_extra_images > 0 and num_extra_images > 0 else []
+        highest_index_image - extra_images_num_adjacent_images,
+        highest_index_image + extra_images_num_adjacent_images
+    )) if extra_images_num_adjacent_images > 0 and num_extra_images > 0 else []
     extra_image_job_names = []
 
     for i in range(num_images):
