@@ -6,6 +6,7 @@ from math import sqrt, atan, floor, ceil
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
+import re
 # from concurrent.futures import ThreadPoolExecutor
 
 # This script is intended to be run on the results of a NEB calculation in AMS.
@@ -40,7 +41,7 @@ from datetime import datetime
 ams_job_paths = ["/Users/haiiro/NoSync/2025_AMSPythonData/CM_Ashley/no_field_NEB.ams"]
 
 # To rerun on a previously processed file, set the restart_dill_path to the path of the dill file in the working directory of the previous run. Otherwise, set to None, False, or ''. Set the csv paths to be an empty list if you want the script to use the dill file input.
-restart_dill_paths = []
+restart_dill_paths = ['/Users/haiiro/NoSync/2025_AMSPythonData/CM_Ashley/plams_workdir/no_field_NEB/no_field_NEB.dill']
 
 # Define paths to previously created cp data CSV files in order to do statistical analysis.
 csv_file_paths = []
@@ -49,20 +50,20 @@ csv_file_paths = []
 start_image = 2 # 0 means the first image in the NEB, 1 means the second image, etc.
 end_image = 20  # -1 means the last image in the NEB
 
-# Define atom pairs (pairs of atom numbers) for which to extract bond critical point information.
+# Define atom pairs (pairs of atom numbers with associated descriptions) for which to extract bond critical point information.
 # One list for each input file defined above
 atom_pairs_list = (  # one-based indices, same as shown in AMSView
-    (
-        (9, 12),  # breaking C-O bond
-        (12, 13), # breaking C-O O's remaining (single -> double) C-O bond
-        (7, 9), # breaking C-O C's C-C bond towards OH
-        (9, 11), # breaking C-O C's C-C bond towards CO2
-        (1, 14), # forming C-C bond
-        (13, 14), # forming C-C other (double -> single) C-C bond
-        (1, 15), # forming C-C ring C-C bond with CO2 C
-        (1, 3), # forming C-C ring C-C bond with (aromatic -> single) ring C
-        (1, 11), # forming C-C ring C-C bond with (aromatic -> single) other ring C
-    ),
+    {
+        (9, 12): "Breaking",  # breaking C-O bond
+        (12, 13): "- → =", # breaking C-O O's remaining (single -> double) C-O bond
+        (7, 9): "Ring to OH - → ≃", # breaking C-O C's C-C bond towards OH
+        (9, 11): "Ring - → ≃", # breaking C-O C's C-C bond towards CO2
+        (1, 14): "Forming", # forming C-C bond
+        (13, 14): "C3O3 = → -", # forming C-C other (double -> single) C-C bond
+        (1, 15): "Ring CO2 C", # forming C-C ring C-C bond with CO2 C
+        (1, 3): "Ring ≃ → -", # forming C-C ring C-C bond with (aromatic -> single) ring C
+        (1, 11): "Ring to OH ≃ → -", # forming C-C ring C-C bond with (aromatic -> single) other ring C
+    },
 )
 
 # Index of atom pair for which to print the bond distance of each image to be run. (or set to -1 to not print any distances)
@@ -301,7 +302,7 @@ def parse_cp_info(file_path):
     return cp_data
 
 
-def get_bcp_properties(job, atom_pairs, unrestricted=False):
+def get_bcp_properties(job, atom_pairs_dict, unrestricted=False):
     # first get kf file from finished job
     kf = KFFile(job.results["adf.rkf"])
     cp_type_codes = {"nuclear": 1, "bond": 3, "ring": 4, "cage": 2}
@@ -325,6 +326,7 @@ def get_bcp_properties(job, atom_pairs, unrestricted=False):
     # get image number from job name, which is present as, for example, 'im001' in the job name
     image_number = int(job.name.split("im")[1])
 
+    atom_pairs = list(atom_pairs_dict.keys())
     for pair in atom_pairs:
         a1 = [getattr(out_mol.atoms[pair[0] - 1], d) for d in ["x", "y", "z"]]
         a2 = [getattr(out_mol.atoms[pair[1] - 1], d) for d in ["x", "y", "z"]]
@@ -630,7 +632,7 @@ KinDens scf"""
             os.remove(densf_run_file)
 
 
-def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lists):
+def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lists, atom_pairs_dict):
     # Ensure the output directory exists
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
@@ -706,7 +708,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
             fig, axs = plt.subplots(
                 len(expanded_y_prop_list),
                 num_eef + 1,
-                figsize=(1+5*(num_eef+1), 3 * len(expanded_y_prop_list)),
+                figsize=(1+7*(num_eef+1), 3 * len(expanded_y_prop_list)),
             )
             fig.suptitle(
                 f"{job_name}: Combined plots for {x_prop} ({plot_name})",
@@ -743,6 +745,8 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                                     )
                                     continue
                             x_values, y_values = zip(*sorted(zip(x_values, y_values)))
+                            
+                            atom_pair_tuple = tuple(map(int, re.findall(r"[a-zA-Z]{1,2}(\d+)-[a-zA-Z]{1,2}(\d+)", bcp)[0]))
 
                             if is_derivative:
                                 x_vals, y_vals = compute_derivative(x_values, y_values)
@@ -750,12 +754,12 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                                     x_vals[1:-1],
                                     y_vals[1:-1],
                                     "-o",
-                                    label=bcp,
+                                    label=f"{bcp}: {atom_pairs_dict[atom_pair_tuple]}",
                                     markersize=2,
                                 )
                             else:
                                 ax.plot(
-                                    x_values, y_values, "-o", label=bcp, markersize=2
+                                    x_values, y_values, "-o", label=f"{bcp}: {atom_pairs_dict[atom_pair_tuple]}", markersize=2
                                 )
 
                     ax.legend(loc="upper left", bbox_to_anchor=(1, 1), fontsize=7)
@@ -1270,6 +1274,7 @@ def process_results(jobs, atom_pairs, path, prop_list, x_prop_list, unrestricted
         x_prop_list,
         os.path.dirname(path),
         combined_plots_y_prop_lists,
+        atom_pairs
     )
 
     if len(densf_bb_atom_numbers) > 0:
