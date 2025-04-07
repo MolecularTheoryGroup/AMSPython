@@ -54,11 +54,11 @@ end_image = 20  # -1 means the last image in the NEB
 # One list for each input file defined above
 atom_pairs_list = (  # one-based indices, same as shown in AMSView
     {
-        (9, 12): "Breaking",  # breaking C-O bond
+        (9, 12): "Breaking bond",  # breaking C-O bond
         (12, 13): "- → =", # breaking C-O O's remaining (single -> double) C-O bond
         (7, 9): "Ring to OH - → ≃", # breaking C-O C's C-C bond towards OH
         (9, 11): "Ring - → ≃", # breaking C-O C's C-C bond towards CO2
-        (1, 14): "Forming", # forming C-C bond
+        (1, 14): "Forming bond", # forming C-C bond
         (13, 14): "C3O3 = → -", # forming C-C other (double -> single) C-C bond
         (1, 15): "Ring CO2 C", # forming C-C ring C-C bond with CO2 C
         (1, 3): "Ring ≃ → -", # forming C-C ring C-C bond with (aromatic -> single) ring C
@@ -117,7 +117,7 @@ extra_images_num_adjacent_images = 2
 # in addition to any of the properties that appear as column headings in the output CSV file,
 # you may specify the following properties to plot as x or y axis values:
 #
-# "Reaction coordinate"         (i.e. the image number) which will likely be changed by the nubmer of extra images added)
+# "NEB image"         (i.e. the image number) which will likely be changed by the nubmer of extra images added)
 # "<atom1>-<atom2> distance"    for each atom pair defined above, including its symbol, e.g. "C40-H47 distance" for the CH bond
 # "Molecular bond energy"       the total energy of the molecule
 
@@ -139,7 +139,7 @@ combined_plots_y_prop_lists = {
 
 plot_x_prop_list = [
     "C1-C14 distance",
-    "Reaction coordinate",
+    "NEB image",
 ]
 ##### end Plot settings #####
 
@@ -400,7 +400,7 @@ def get_bcp_properties(job, atom_pairs_dict, unrestricted=False):
     job_energy = job.results.get_energy(engine="adf")
     for i in range(len(out_cp_data)):
         out_cp_data[i]["JOB_NAME"] = job.name
-        out_cp_data[i]["Reaction coordinate"] = image_number
+        out_cp_data[i]["NEB image"] = image_number
         out_cp_data[i]["Molecular bond energy"] = job_energy
 
     # match cp_indices to the right element in out_cp_data using the [CP #] key
@@ -680,6 +680,22 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
     }
 
     for x_prop in x_prop_list:
+        
+        x_prop_tuple = None
+        if "distance" in x_prop.lower():
+            x_prop_tuple = tuple(map(int, re.findall(r"[a-zA-Z]{1,2}(\d+)-[a-zA-Z]{1,2}(\d+)", x_prop.lower().replace(" distance", ""))[0]))
+            if x_prop_tuple not in atom_pairs_dict:
+                # reverse tuple order
+                x_prop_tuple = (x_prop_tuple[1], x_prop_tuple[0])
+                if x_prop_tuple not in atom_pairs_dict:
+                    log_print(f"Warning: Atom pair {x_prop_tuple} not found in atom_pairs_dict.")
+                    x_prop_tuple = None
+        
+        if x_prop_tuple and len(atom_pairs_dict[x_prop_tuple]) > 0:
+            x_prop_label = x_prop + ": (" + atom_pairs_dict[x_prop_tuple] + ")"
+        else:
+            x_prop_label = x_prop
+        
         for plot_name, y_prop_list in combined_y_prop_lists.items():
             log_print(
                 f"Plotting combined plots for {plot_name} vs {x_prop} for bond CPs"
@@ -711,7 +727,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                 figsize=(1+7*(num_eef+1), 3 * len(expanded_y_prop_list)),
             )
             fig.suptitle(
-                f"{job_name}: Combined plots for {x_prop} ({plot_name})",
+                f"{job_name}: Combined plots for {x_prop_label} ({plot_name})",
                 fontsize=16,
                 y=1.02,
             )
@@ -728,8 +744,8 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                         ax = axs[i, j] if len(expanded_y_prop_list) > 1 else axs[j]
                     else:
                         ax = axs[i] if len(expanded_y_prop_list) > 1 else axs
-                    ax.set_title(f"{y_prop}{eef} vs {x_prop}", fontsize=9)
-                    ax.set_xlabel(x_prop)
+                    ax.set_title(f"{y_prop}{eef} vs {x_prop_label}", fontsize=9)
+                    ax.set_xlabel(x_prop_label)
                     ax.set_ylabel(y_prop)
 
                     for bcp, bcp_props in bcp_prop_dict.items():
@@ -747,6 +763,10 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                             x_values, y_values = zip(*sorted(zip(x_values, y_values)))
                             
                             atom_pair_tuple = tuple(map(int, re.findall(r"[a-zA-Z]{1,2}(\d+)-[a-zA-Z]{1,2}(\d+)", bcp)[0]))
+                            if len(atom_pairs_dict[atom_pair_tuple]) > 0:
+                                bcp_label = f"{bcp} ({atom_pairs_dict[atom_pair_tuple]})"
+                            else:
+                                bcp_label = bcp
 
                             if is_derivative:
                                 x_vals, y_vals = compute_derivative(x_values, y_values)
@@ -754,12 +774,12 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                                     x_vals[1:-1],
                                     y_vals[1:-1],
                                     "-o",
-                                    label=f"{bcp}: {atom_pairs_dict[atom_pair_tuple]}",
+                                    label=bcp_label,
                                     markersize=2,
                                 )
                             else:
                                 ax.plot(
-                                    x_values, y_values, "-o", label=f"{bcp}: {atom_pairs_dict[atom_pair_tuple]}", markersize=2
+                                    x_values, y_values, "-o", label=bcp_label, markersize=2
                                 )
 
                     ax.legend(loc="upper left", bbox_to_anchor=(1, 1), fontsize=7)
@@ -772,8 +792,8 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                         if len(expanded_y_prop_list) > 1
                         else axs[num_eef]
                     )
-                    ax.set_title(f"{y_prop} vs {x_prop} (All EEF)", fontsize=9)
-                    ax.set_xlabel(x_prop)
+                    ax.set_title(f"{y_prop} vs {x_prop_label} (All EEF)", fontsize=9)
+                    ax.set_xlabel(x_prop_label)
                     ax.set_ylabel(y_prop)
 
                     for bcp, bcp_props in bcp_prop_dict.items():
