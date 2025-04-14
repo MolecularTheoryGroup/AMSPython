@@ -41,14 +41,14 @@ import re
 ams_job_paths = ["/Users/haiiro/NoSync/2025_AMSPythonData/CM_Ashley/no_field_NEB.ams"]
 
 # To rerun on a previously processed file, set the restart_dill_path to the path of the dill file in the working directory of the previous run. Otherwise, set to None, False, or ''. Set the csv paths to be an empty list if you want the script to use the dill file input.
-restart_dill_paths = ['/Users/haiiro/NoSync/2025_AMSPythonData/CM_Ashley/plams_workdir/no_field_NEB/no_field_NEB.dill']
+restart_dill_paths = []
 
 # Define paths to previously created cp data CSV files in order to do statistical analysis.
 csv_file_paths = []
 
 # You can control the starting and ending NEB image number to include in the analysis here.
-start_image = 2 # 0 means the first image in the NEB, 1 means the second image, etc.
-end_image = 20  # -1 means the last image in the NEB
+start_image = 0 # 0 means the first image in the NEB, 1 means the second image, etc.
+end_image = -1  # -1 means the last image in the NEB
 
 # Define atom pairs (pairs of atom numbers with associated descriptions) for which to extract bond critical point information.
 # One list for each input file defined above
@@ -63,11 +63,12 @@ atom_pairs_list = (  # one-based indices, same as shown in AMSView
         (1, 15): "Ring CO2 C", # forming C-C ring C-C bond with CO2 C
         (1, 3): "Ring ≃ → -", # forming C-C ring C-C bond with (aromatic -> single) ring C
         (1, 11): "Ring to OH ≃ → -", # forming C-C ring C-C bond with (aromatic -> single) other ring C
+
     },
 )
 
-# Index of atom pair for which to print the bond distance of each image to be run. (or set to -1 to not print any distances)
-atom_pair_for_bond_distance_printout = 4
+# Index of atom pair for which to print the bond distance of each image to be run. (or set to None to not print any distances)
+atom_pair_for_bond_distance_printout = (1,14)
 
 ##### densf full grid settings #####
 # This script can also be used to create full 3d grids for each step along the NEB.
@@ -95,8 +96,8 @@ user_eef = None  # (0.0, 0.0, 0.01)
 # new jobs they need to be V/Angstrom. The conversion factor is 51.4220861908324.
 eef_conversion_factor = 51.4220861908324
 # Define the EEF pairs
-# eef_pairs = (("origEEF", eef_conversion_factor), ("revEEF", -eef_conversion_factor), ("noEEF", 0))
-eef_pairs = (("origEEF", eef_conversion_factor))
+eef_pairs = (("origEEF", eef_conversion_factor), ("revEEF", -eef_conversion_factor), ("noEEF", 0))
+# eef_pairs = (("origEEF", eef_conversion_factor))
 ##### end EEF Settings #####
 
 ##### Extra interpolated single point settings #####
@@ -138,7 +139,7 @@ combined_plots_y_prop_lists = {
 }
 
 plot_x_prop_list = [
-    "C1-C14 distance",
+    "O39-H47 distance",
     "NEB image",
 ]
 ##### end Plot settings #####
@@ -724,7 +725,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
             fig, axs = plt.subplots(
                 len(expanded_y_prop_list),
                 num_eef + 1,
-                figsize=(1+7*(num_eef+1), 3 * len(expanded_y_prop_list)),
+                figsize=(1+7*(num_eef+1), 5 * len(expanded_y_prop_list)),
             )
             fig.suptitle(
                 f"{job_name}: Combined plots for {x_prop_label} ({plot_name})",
@@ -1239,8 +1240,8 @@ def main(ams_job_path, atom_pairs):
             im_num += 1
 
     # print each job's name and coordinates of first atom (for debugging only; remember to check that the correct bond distance is being printed)
-    if atom_pair_for_bond_distance_printout >= 0:
-        atom_nums = atom_pairs[atom_pair_for_bond_distance_printout]
+    if atom_pair_for_bond_distance_printout is not None:
+        atom_nums = atom_pair_for_bond_distance_printout
         bond_name = f"{atom_species[atom_nums[0]-1]}{atom_nums[0]}-{atom_species[atom_nums[1]-1]}{atom_nums[1]}"
         log_print(f"Printing bond distances for {bond_name} in each job:")
         for job in jobs.children:
@@ -2362,7 +2363,7 @@ if __name__ == "__main__":
         log_print("Performing post-processing on provided restart dill files...")
         for restart_dill_path, atom_pairs in zip(restart_dill_paths, atom_pairs_list):
             test_post_processing_multiple_jobs(
-                restart_dill_path, atom_pairs, unrestricted=False
+                restart_dill_path, atom_pairs, unrestricted=True
             )
     else:
         log_print("Running ADF NEB BCP analysis on provided job paths...")
