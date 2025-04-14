@@ -38,7 +38,7 @@ import re
 
 # Define the path to the AMS job file (`path/to/job.ams`), or if you don't have an ams file, use
 # the path to the ams.rkf result file. Set the dill and csv paths to be empty in order to have the script use the AMS job file input.
-ams_job_paths = ["/Users/haiiro/NoSync/2025_AMSPythonData/CM_Ashley/no_field_NEB.ams"]
+ams_job_paths = ["/Users/haiiro/NoSync/2025_AMSPythonData/CM_Ashley/norm_against_Efield_NEB_aligned/norm_against_field_NEB.ams"]
 
 # To rerun on a previously processed file, set the restart_dill_path to the path of the dill file in the working directory of the previous run. Otherwise, set to None, False, or ''. Set the csv paths to be an empty list if you want the script to use the dill file input.
 restart_dill_paths = []
@@ -63,7 +63,6 @@ atom_pairs_list = (  # one-based indices, same as shown in AMSView
         (1, 15): "Ring CO2 C", # forming C-C ring C-C bond with CO2 C
         (1, 3): "Ring ≃ → -", # forming C-C ring C-C bond with (aromatic -> single) ring C
         (1, 11): "Ring to OH ≃ → -", # forming C-C ring C-C bond with (aromatic -> single) other ring C
-
     },
 )
 
@@ -96,8 +95,8 @@ user_eef = None  # (0.0, 0.0, 0.01)
 # new jobs they need to be V/Angstrom. The conversion factor is 51.4220861908324.
 eef_conversion_factor = 51.4220861908324
 # Define the EEF pairs
-eef_pairs = (("origEEF", eef_conversion_factor), ("revEEF", -eef_conversion_factor), ("noEEF", 0))
-# eef_pairs = (("origEEF", eef_conversion_factor))
+# eef_pairs = [("origEEF", eef_conversion_factor), ("revEEF", -eef_conversion_factor), ("noEEF", 0)]
+eef_pairs = [("origEEF", eef_conversion_factor)]
 ##### end EEF Settings #####
 
 ##### Extra interpolated single point settings #####
@@ -1185,8 +1184,8 @@ def main(ams_job_path, atom_pairs):
         im_mol.properties = input_job.molecule[''].properties.copy()  # copy properties from the input job
         im_mol.guess_bonds()
         # Now add atom properties from input job molecule
-        for i in range(len(input_job_mol.atoms)):
-            im_mol.atoms[i].properties = input_job_mol.atoms[i].properties.copy()
+        for j in range(len(input_job_mol.atoms)):
+            im_mol.atoms[j].properties = input_job_mol.atoms[j].properties.copy()
         
         moles = [im_mol]
 
@@ -1217,6 +1216,7 @@ def main(ams_job_path, atom_pairs):
                         kf[("NEB", f"im{i}.eeEField")] if user_eef is None else user_eef
                     )
                 )
+                
                 job_settings = base_settings.copy()
                 for eef_pair in eef_pairs:
                     eef_name, eef_val = eef_pair
@@ -1228,7 +1228,7 @@ def main(ams_job_path, atom_pairs):
                     job_name = f"{input_job_name}_{eef_name}_im{im_num:03d}"
                     job = AMSJob(molecule=mol, settings=job_settings, name=job_name)
                     jobs.children.append(job)
-                    if is_in_extra_image_range and eef_pair == eef_pairs[0] and mol != moles[0]:
+                    if is_in_extra_image_range and mol != moles[0]:
                         extra_image_job_names.append(job_name)
             else:
                 # no EEF, so only need to run one job for the image
@@ -1245,10 +1245,11 @@ def main(ams_job_path, atom_pairs):
         bond_name = f"{atom_species[atom_nums[0]-1]}{atom_nums[0]}-{atom_species[atom_nums[1]-1]}{atom_nums[1]}"
         log_print(f"Printing bond distances for {bond_name} in each job:")
         for job in jobs.children:
-            suffix = f" (Extra Image)" if job.name in extra_image_job_names else ""
-            log_print(
-                f"{job.name}: {bond_name} distance = {job.molecule.atoms[atom_nums[0]-1].distance_to(job.molecule.atoms[atom_nums[1]-1])}{suffix}"
-            )
+            if not has_eef or eef_pairs[0][0] in job.name:
+                suffix = f" (Extra Image)" if job.name in extra_image_job_names else ""
+                log_print(
+                    f"{job.name}: {bond_name} distance = {job.molecule.atoms[atom_nums[0]-1].distance_to(job.molecule.atoms[atom_nums[1]-1])}{suffix}"
+                )
     
     # return
 
