@@ -38,17 +38,18 @@ import re
 
 # Define the path to the AMS job file (`path/to/job.ams`), or if you don't have an ams file, use
 # the path to the ams.rkf result file. Set the dill and csv paths to be empty in order to have the script use the AMS job file input.
-ams_job_paths = ["/Users/haiiro/NoSync/2025_AMSPythonData/CM_Ashley/norm_against_Efield_NEB_aligned/norm_against_field_NEB.ams"]
+ams_job_paths = ["/Users/haiiro/NoSync/2025_AMSPythonData/CM_Ashley/norm_against_Efield_NEB_aligned_new/norm_against_field_NEB.ams"]
 
 # To rerun on a previously processed file, set the restart_dill_path to the path of the dill file in the working directory of the previous run. Otherwise, set to None, False, or ''. Set the csv paths to be an empty list if you want the script to use the dill file input.
-restart_dill_paths = []
+restart_dill_paths = ["/Users/haiiro/NoSync/2025_AMSPythonData/CM_Ashley/norm_against_Efield_NEB_aligned_new/norm_againstfield_bcpanalysis/plams_workdir.002/norm_against_field_NEB/norm_against_field_NEB.dill"]
+unrestricted_calculation = False
 
 # Define paths to previously created cp data CSV files in order to do statistical analysis.
 csv_file_paths = []
 
 # You can control the starting and ending NEB image number to include in the analysis here.
-start_image = 0 # 0 means the first image in the NEB, 1 means the second image, etc.
-end_image = -1  # -1 means the last image in the NEB
+start_image = 2 # 0 means the first image in the NEB, 1 means the second image, etc.
+end_image = 15  # -1 means the last image in the NEB
 
 # Define atom pairs (pairs of atom numbers with associated descriptions) for which to extract bond critical point information.
 # One list for each input file defined above
@@ -103,7 +104,7 @@ eef_pairs = [("origEEF", eef_conversion_factor)]
 # To get better resultion around the transition state, we'll identify the TS image (highest energy image)
 # and create additional images between it and the adjacent images, using a linear interpolation of the
 # coordinates of the adjacent images. Here, you specify how many extra images to add on *each* side of the TS image.
-num_extra_images = 0
+num_extra_images = 3
 # This then determines how many images to the left/right of the TS image to create. `num_extra_images` images will be created between each adjacent pair of images.
 # So "1" will result in `num_extra_images` images being added only between the TS image and its adjacent images,
 # while "3" will add `num_extra_images` between each image pair starting 3 images before the TS, etc.
@@ -138,7 +139,7 @@ combined_plots_y_prop_lists = {
 }
 
 plot_x_prop_list = [
-    "O39-H47 distance",
+    "C9-O12 distance",
     "NEB image",
 ]
 ##### end Plot settings #####
@@ -723,7 +724,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
             # Create a large figure for the combined plot
             fig, axs = plt.subplots(
                 len(expanded_y_prop_list),
-                num_eef + 1,
+                (num_eef if num_eef > 1 else 0) + 1,
                 figsize=(1+7*(num_eef+1), 5 * len(expanded_y_prop_list)),
             )
             fig.suptitle(
@@ -740,7 +741,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                 base_prop = y_prop.replace(" d/dx", "") if is_derivative else y_prop
 
                 for j, eef in enumerate(eef_types):
-                    if num_eef > 0:
+                    if num_eef > 1:
                         ax = axs[i, j] if len(expanded_y_prop_list) > 1 else axs[j]
                     else:
                         ax = axs[i] if len(expanded_y_prop_list) > 1 else axs
@@ -786,7 +787,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                     ax.grid(True)
 
                 # Add the "All EEF" plot in the fourth column
-                if has_eef:
+                if has_eef and num_eef > 1:
                     ax = (
                         axs[i, num_eef]
                         if len(expanded_y_prop_list) > 1
@@ -1056,6 +1057,7 @@ def interpolate_molecules(mol1, mol2, num_images):
         # Now add atom properties from input job molecule
         for i in range(len(mol1.atoms)):
             mol.atoms[i].properties = mol1.atoms[i].properties.copy()
+        mol.properties = mol1.properties.copy()
         interpolated_molecules.append(mol)
     return interpolated_molecules
 
@@ -1201,6 +1203,7 @@ def main(ams_job_path, atom_pairs):
                 tuple(ip1_coords[i : i + 3]) for i in range(0, len(ip1_coords), 3)
             ]
             ip1_mol = Molecule(positions=ip1_atom_coords, numbers=atom_numbers)
+            ip1_mol.properties = im_mol.properties.copy()  # copy properties from the input job
             moles.extend(interpolate_molecules(im_mol, ip1_mol, num_extra_images))
             is_in_extra_image_range = True
         else:
@@ -1230,6 +1233,13 @@ def main(ams_job_path, atom_pairs):
                     jobs.children.append(job)
                     if is_in_extra_image_range and mol != moles[0]:
                         extra_image_job_names.append(job_name)
+                    
+                    # save job runscript for inspection
+                    # run_file_path = f"{job_name}.run"
+                    # with open(run_file_path, "w") as run_file:
+                    #     run_file.write(str(job.molecule)+"\n")
+                    #     run_file.write(str(job.settings)+"\n")
+                    #     run_file.write(str(job.get_runscript()))
             else:
                 # no EEF, so only need to run one job for the image
                 job_name = f"{input_job_name}_im{im_num:03d}"
@@ -1237,6 +1247,13 @@ def main(ams_job_path, atom_pairs):
                 jobs.children.append(job)
                 if is_in_extra_image_range and mol != moles[0]:
                     extra_image_job_names.append(job_name)
+                    
+                # save job runscript for inspection
+                # run_file_path = f"{job_name}.run"
+                # with open(run_file_path, "w") as run_file:
+                #     run_file.write(str(job.molecule)+"\n")
+                #     run_file.write(str(job.settings)+"\n")
+                #     run_file.write(str(job.get_runscript()))
             im_num += 1
 
     # print each job's name and coordinates of first atom (for debugging only; remember to check that the correct bond distance is being printed)
@@ -2364,7 +2381,7 @@ if __name__ == "__main__":
         log_print("Performing post-processing on provided restart dill files...")
         for restart_dill_path, atom_pairs in zip(restart_dill_paths, atom_pairs_list):
             test_post_processing_multiple_jobs(
-                restart_dill_path, atom_pairs, unrestricted=True
+                restart_dill_path, atom_pairs, unrestricted=unrestricted_calculation
             )
     else:
         log_print("Running ADF NEB BCP analysis on provided job paths...")
