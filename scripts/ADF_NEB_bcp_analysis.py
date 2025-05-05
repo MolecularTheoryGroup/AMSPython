@@ -40,11 +40,11 @@ import warnings # To warn about potential issues
 
 # Define the path to the AMS job file (`path/to/job.ams`), or if you don't have an ams file, use
 # the path to the ams.rkf result file. Set the dill and csv paths to be empty in order to have the script use the AMS job file input.
-ams_job_paths = ["/Users/haiiro/NoSync/2025_AMSPythonData/CM_Ashley/norm_against_Efield_NEB_aligned_new/norm_against_field_NEB.ams"]
+ams_job_paths = []
 
 # To rerun on a previously processed file, set the restart_dill_path to the path of the dill file in the working directory of the previous run. Otherwise, set to None, False, or ''. Set the csv paths to be an empty list if you want the script to use the dill file input.
-restart_dill_paths = ["/Users/haiiro/NoSync/2025_AMSPythonData/CM_Ashley/norm_against_Efield_NEB_aligned_new/norm_againstfield_bcpanalysis/plams_workdir.002/norm_against_field_NEB/norm_against_field_NEB.dill"]
-unrestricted_calculation = False
+restart_dill_paths = ['/Users/haiiro/NoSync/2025_AMSPythonData/plams_workdir.004/Cys_propane_near_TS/Cys_propane_near_TS.dill']
+unrestricted_calculation = True
 
 # Define paths to previously created cp data CSV files in order to do statistical analysis.
 csv_file_paths = []
@@ -56,21 +56,31 @@ end_image = 15  # -1 means the last image in the NEB
 # Define atom pairs (pairs of atom numbers with associated descriptions) for which to extract bond critical point information.
 # One list for each input file defined above
 atom_pairs_list = (  # one-based indices, same as shown in AMSView
+    # {
+    #     (9, 12): "Breaking bond",  # breaking C-O bond
+    #     (12, 13): "- → =", # breaking C-O O's remaining (single -> double) C-O bond
+    #     (7, 9): "Ring to OH - → ≃", # breaking C-O C's C-C bond towards OH
+    #     (9, 11): "Ring - → ≃", # breaking C-O C's C-C bond towards CO2
+    #     (1, 14): "Forming bond", # forming C-C bond
+    #     (13, 14): "C3O3 = → -", # forming C-C other (double -> single) C-C bond
+    #     (1, 15): "Ring CO2 C", # forming C-C ring C-C bond with CO2 C
+    #     (1, 3): "Ring ≃ → -", # forming C-C ring C-C bond with (aromatic -> single) ring C
+    #     (1, 11): "Ring to OH ≃ → -", # forming C-C ring C-C bond with (aromatic -> single) other ring C
+    # },
     {
-        (9, 12): "Breaking bond",  # breaking C-O bond
-        (12, 13): "- → =", # breaking C-O O's remaining (single -> double) C-O bond
-        (7, 9): "Ring to OH - → ≃", # breaking C-O C's C-C bond towards OH
-        (9, 11): "Ring - → ≃", # breaking C-O C's C-C bond towards CO2
-        (1, 14): "Forming bond", # forming C-C bond
-        (13, 14): "C3O3 = → -", # forming C-C other (double -> single) C-C bond
-        (1, 15): "Ring CO2 C", # forming C-C ring C-C bond with CO2 C
-        (1, 3): "Ring ≃ → -", # forming C-C ring C-C bond with (aromatic -> single) ring C
-        (1, 11): "Ring to OH ≃ → -", # forming C-C ring C-C bond with (aromatic -> single) other ring C
+        (40, 47): "Breaking bond",  # CH
+        (47, 39): "Forming bond",  # OH
+        (1, 39): "",  # FeO
+        (1, 53): "Fe-Ligand",  # Fe-amino acid Cys
+        (1, 2): "",  # FeN
+        (1, 3): "",  # FeN
+        (1, 4): "",  # FeN
+        (1, 5): "",  # FeN
     },
 )
 
 # Index of atom pair for which to print the bond distance of each image to be run. (or set to None to not print any distances)
-atom_pair_for_bond_distance_printout = (1,14)
+atom_pair_for_bond_distance_printout = (40, 47)
 
 ##### densf full grid settings #####
 # This script can also be used to create full 3d grids for each step along the NEB.
@@ -98,8 +108,8 @@ user_eef = None  # (0.0, 0.0, 0.01)
 # new jobs they need to be V/Angstrom. The conversion factor is 51.4220861908324.
 eef_conversion_factor = 51.4220861908324
 # Define the EEF pairs
-# eef_pairs = [("origEEF", eef_conversion_factor), ("revEEF", -eef_conversion_factor), ("noEEF", 0)]
-eef_pairs = [("origEEF", eef_conversion_factor)]
+eef_pairs = [("origEEF", eef_conversion_factor), ("revEEF", -eef_conversion_factor), ("noEEF", 0)]
+# eef_pairs = [("origEEF", eef_conversion_factor)]
 ##### end EEF Settings #####
 
 ##### Extra interpolated single point settings #####
@@ -142,7 +152,7 @@ combined_plots_y_prop_lists = {
 }
 
 plot_x_prop_list = [
-    "C9-O12 distance",
+    "H47-O39 distance",
     "NEB image",
 ]
 ##### end Plot settings #####
@@ -256,16 +266,19 @@ def compute_polynomial_derivative(
     n_fine=100, 
     n_validation_factor=5, 
     min_order=2, 
-    max_order=20, 
+    max_order=8, 
     output_at='original', 
-    overfitting_tolerance=1e-2 
+    interior_percent=96, # Percentage of data range (centered) to use for validation error
+    overfitting_tolerance=1e-4
 ):
     """
-    Computes a smoothed derivative using polynomial fitting with validation.
+    Computes a smoothed derivative using polynomial fitting with validation based
+    on maximum absolute error over the interior range.
 
-    Fits polynomials of increasing order to finely resampled data and uses
-    an even finer resampling for validation to select the best order, 
-    avoiding overfitting. The derivative of the best-fit polynomial is returned.
+    Fits polynomials of increasing order to finely resampled data. Uses the
+    maximum absolute error on an even finer resampling (excluding boundary 
+    points) to select the best order, avoiding overfitting. The derivative 
+    of the best-fit polynomial is returned.
 
     Parameters:
     x (array-like): Original x-coordinates.
@@ -279,10 +292,14 @@ def compute_polynomial_derivative(
     output_at (str): Specifies the x-coordinates for the output derivative.
                        'original': Output derivative at the unique original x values.
                        'fine': Output derivative at the n_fine resampled x values.
-    overfitting_tolerance (float): Tolerance for early stopping. If the validation 
-                                   error increases by more than this fraction 
-                                   relative to the minimum error found so far, 
-                                   fitting stops. Set <= 0 to disable early stopping.
+    interior_percent (float): The percentage (0-100) of the central data range 
+                              of the validation set to use for calculating the 
+                              maximum absolute error metric. E.g., 96 means exclude 
+                              2% from each end.
+    overfitting_tolerance (float): Tolerance for early stopping based on the max error. 
+                                   If the max interior error increases by more than 
+                                   this fraction relative to the minimum error found 
+                                   so far, fitting stops. Set <= 0 to disable.
 
     Returns:
     tuple: (x_output, derivative_values) 
@@ -304,6 +321,8 @@ def compute_polynomial_derivative(
          raise ValueError(f"max_order ({max_order}) must be less than n_fine ({n_fine}).")
     if min_order < 0:
          raise ValueError("min_order cannot be negative.")
+    if not (0 < interior_percent <= 100):
+        raise ValueError("interior_percent must be between 0 (exclusive) and 100 (inclusive).")
     if output_at not in ['original', 'fine']:
         raise ValueError("output_at must be 'original' or 'fine'.")
         
@@ -322,13 +341,11 @@ def compute_polynomial_derivative(
     if len(x_unique) < 2:
         warnings.warn("Need at least 2 unique points after handling duplicates. Cannot compute derivative.")
         return None, None
-    # Need enough unique points for interpolation and minimum polynomial order
     if len(x_unique) <= min_order:
          warnings.warn(f"Need at least {min_order + 1} unique points for minimum polynomial order {min_order}, found {len(x_unique)}. Cannot proceed.")
          return None, None
          
     # --- Generate Interpolation Function ---
-    # Use unique points as the basis for interpolation
     try:
         interp_func = interp1d(x_unique, y_unique, kind='linear', fill_value="extrapolate")
     except ValueError as e:
@@ -343,15 +360,32 @@ def compute_polynomial_derivative(
     x_validation = np.linspace(x_min, x_max, n_validation)
     y_validation = interp_func(x_validation)
 
+    # --- Determine Interior Indices for Validation ---
+    if interior_percent == 100:
+        idx_start = 0
+        idx_end = n_validation - 1
+    else:
+        margin = (100.0 - interior_percent) / 2.0 / 100.0
+        idx_start = int(np.floor(n_validation * margin))
+        idx_end = int(np.ceil(n_validation * (1.0 - margin))) -1
+        # Ensure indices are valid and range is sensible
+        idx_start = max(0, idx_start)
+        idx_end = min(n_validation - 1, idx_end)
+        if idx_start >= idx_end:
+             warnings.warn(f"Interior range calculation resulted in non-positive length ({idx_start} to {idx_end}). Using full range.")
+             idx_start = 0
+             idx_end = n_validation - 1
+             
+    print(f"Using validation points from index {idx_start} to {idx_end} (inclusive) for max error calculation.")
+
     # --- Iterative Polynomial Fitting and Validation ---
     best_order = -1
-    min_validation_error = np.inf
+    min_validation_max_error = np.inf # Now tracking minimum of the maximum errors
     best_coeffs = None
 
-    print(f"Fitting polynomial orders {min_order} to {max_order}...") # Optional progress indicator
+    print(f"Fitting polynomial orders {min_order} to {max_order}...") 
 
     for order in range(min_order, max_order + 1):
-        # Check if we have enough points for this order in the fitting set
         if n_fine <= order:
             warnings.warn(f"Skipping order {order}: n_fine ({n_fine}) is not greater than order.")
             continue
@@ -361,34 +395,35 @@ def compute_polynomial_derivative(
             coeffs = np.polyfit(x_fine, y_fine, deg=order)
         except (np.linalg.LinAlgError, ValueError) as e:
             warnings.warn(f"Polyfit failed for order {order}: {e}. Stopping search.")
-            break # Stop if polyfit fails numerically
+            break 
 
         # Evaluate on the 'validation' dataset
         poly = np.poly1d(coeffs)
         y_predicted_validation = poly(x_validation)
 
-        # Calculate validation error (RMSE)
-        validation_error = np.sqrt(np.mean((y_predicted_validation - y_validation)**2))
+        # Calculate Maximum Absolute Error over the INTERIOR range
+        abs_errors = np.abs(y_predicted_validation - y_validation)
+        max_interior_error = np.max(abs_errors[idx_start:idx_end+1]) # Use slicing for interior
         
-        print(f"  Order {order}: Validation RMSE = {validation_error:.4g}") # Optional progress
+        print(f"  Order {order}: Max Interior Abs Error = {max_interior_error:.4g}") 
 
-        # Check if this is the best model so far
-        if validation_error < min_validation_error:
-            min_validation_error = validation_error
+        # Check if this is the best model so far based on max interior error
+        if max_interior_error < min_validation_max_error:
+            min_validation_max_error = max_interior_error
             best_order = order
             best_coeffs = coeffs
-            print(f"    New best order: {best_order}") # Optional progress
-        # Check for overfitting (early stopping)
-        elif overfitting_tolerance > 0 and validation_error > min_validation_error * (1 + overfitting_tolerance):
-            print(f"    Validation error increased significantly. Stopping early at order {order}.")
-            break # Stop if error increases beyond tolerance compared to best
+            print(f"    New best order: {best_order}") 
+        # Check for overfitting (early stopping based on max interior error)
+        elif overfitting_tolerance > 0 and max_interior_error > min_validation_max_error * (1 + overfitting_tolerance):
+            print(f"    Max interior error increased significantly. Stopping early at order {order}.")
+            break 
 
     # --- Calculate Derivative of Best Polynomial ---
     if best_coeffs is None:
         warnings.warn("No suitable polynomial fit found within the specified orders.")
         return None, None
 
-    print(f"Selected best polynomial order: {best_order}")
+    print(f"Selected best polynomial order: {best_order} (based on min max interior error)")
     best_poly = np.poly1d(best_coeffs)
     derivative_poly = best_poly.deriv()
 
@@ -402,10 +437,13 @@ def compute_polynomial_derivative(
         derivative_values = derivative_poly(x_output)
         print(f"Evaluated derivative at {len(x_output)} fine resampled x points.")
     else:
-        # This case should have been caught earlier, but added for robustness
         raise ValueError("Internal error: Invalid output_at value.") 
 
-    return x_output, derivative_values
+    # Store best_order alongside output if needed for plotting label
+    # (We can't directly return it without changing signature, but it's printed)
+    # If needed, could return a dictionary or tuple: (x_output, derivative_values, best_order)
+    
+    return x_output, derivative_values, best_order
 
 
 def compute_derivative(x, y, order=1, method="basic", num_points=100, k=3, output_at="fine"):
@@ -994,6 +1032,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                     for bcp, bcp_props in bcp_prop_dict.items():
                         x_values = bcp_props.get(f"{x_prop}", None)
                         y_values = bcp_props.get(f"{base_prop}{eef}", None)
+                        # print(f"Data lengths for {bcp}: x={len(x_values)}, y={len(y_values)}")
                         if x_values and y_values:
                             if len(x_values) != len(y_values):
                                 if len(x_values) == num_eef * len(y_values):
@@ -1012,7 +1051,8 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                                 bcp_label = bcp
 
                             if is_derivative:
-                                x_vals, y_vals = compute_derivative(x_values, y_values, method="polynomial")
+                                x_vals, y_vals, order = compute_derivative(x_values, y_values, method="polynomial")
+                                bcp_label += f" (order {order})"
                                 ax.plot(
                                     x_vals[1:-1],
                                     y_vals[1:-1],
@@ -1057,9 +1097,10 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                                 )
 
                                 if is_derivative:
-                                    x_vals, y_vals = compute_derivative(
+                                    x_vals, y_vals, order = compute_derivative(
                                         x_values, y_values, method="polynomial"
                                     )
+                                    bcp_label += f" (order {order})"
                                     ax.plot(
                                         x_vals[1:-1],
                                         y_vals[1:-1],
