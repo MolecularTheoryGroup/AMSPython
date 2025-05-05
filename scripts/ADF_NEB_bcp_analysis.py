@@ -4,9 +4,11 @@ import csv
 import subprocess
 from math import sqrt, atan, floor, ceil
 import numpy as np
+from scipy.interpolate import interp1d, make_interp_spline
 import matplotlib.pyplot as plt
 from datetime import datetime
 import re
+import warnings # To warn about potential issues
 # from concurrent.futures import ThreadPoolExecutor
 
 # This script is intended to be run on the results of a NEB calculation in AMS.
@@ -113,6 +115,7 @@ extra_images_num_adjacent_images = 2
 ##### end Extra interpolated single point settings #####
 
 ##### Plot settings #####
+smooth_derivatives = True
 # Now define the x and y properties for generated plots:
 
 # in addition to any of the properties that appear as column headings in the output CSV file,
@@ -171,8 +174,241 @@ num_cores = ceil(os.cpu_count() / 2)
 # Step 0: define helper functions
 ########################################################################################
 
+def compute_bspline_derivative(x, y, num_points=200, k=21, original_x_points=False):
+    """
+    Computes a smoothed first-order derivative (dy/dx) using resampling, 
+    linear interpolation, and B-spline differentiation, evaluated at the 
+    original unique x-coordinates.
 
-def compute_derivative(x, y, order=1):
+    Parameters:
+    x (array-like): Original x-coordinates.
+    y (array-like): Original y-coordinates, corresponding to x.
+    num_points (int): Number of points for intermediate resampling. 
+                      Used for fitting the spline.
+    k (int): Degree of the B-spline (e.g., 3 for cubic). Must be 
+               less than the number of resampled points and less than 
+               the number of unique original x points.
+
+    Returns:
+    tuple: (x_original_unique, dy_dx_at_original_x) - Unique original x values 
+           (sorted) and corresponding smoothed derivative values.
+           Returns (None, None) if input data is insufficient.
+    """
+    x = np.array(x)
+    y = np.array(y)
+
+    if len(x) < 2 or len(y) < 2:
+        print("Warning: Input arrays must have at least two points.")
+        return None, None
+    if len(x) != len(y):
+         raise ValueError("x and y must have the same length.")
+    if num_points <= k:
+         raise ValueError(f"Number of resampled points ({num_points}) must be greater than spline degree k ({k}).")
+
+    # Ensure x is sorted for interpolation/splines
+    sort_idx = np.argsort(x)
+    x_sorted = x[sort_idx]
+    y_sorted = y[sort_idx]
+    
+    # Handle duplicate x values by averaging corresponding y values
+    # Keep track of the unique x values, as these are our target evaluation points
+    x_original_unique, unique_indices = np.unique(x_sorted, return_index=True)
+    if len(x_original_unique) < len(x_sorted):
+        print("Warning: Duplicate x values found. Averaging corresponding y values.")
+        y_original_unique = np.array([np.mean(y_sorted[x_sorted == ux]) for ux in x_original_unique])
+    else:
+        y_original_unique = y_sorted # No duplicates, use sorted y directly
+
+    # Need at least k+1 unique points for spline of degree k
+    # if len(x_original_unique) <= k:
+    #      print(f"Warning: Not enough unique points ({len(x_original_unique)}) for spline degree {k}.")
+    #      return None, None
+
+    # --- Intermediate steps for smoothing ---
+    # 1. Define evenly spaced x-values for resampling (for fitting the spline)
+    x_resample = np.linspace(np.min(x_original_unique), np.max(x_original_unique), num=num_points)
+
+    # 2. Resample y using linear interpolation based on the unique original points
+    #    Using interp1d requires at least 2 points. Handled by initial checks.
+    f_interp = interp1d(x_original_unique, y_original_unique, kind='linear', fill_value="extrapolate")
+    y_resample = f_interp(x_resample)
+
+    # 3. B-spline fit of the *resampled* data
+    #    make_interp_spline requires k+1 points. Handled by initial checks.
+    spl = make_interp_spline(x_resample, y_resample, k=k)
+    
+    # 4. Compute the derivative of the B-spline
+    spl_deriv = spl.derivative(nu=1) # nu=1 for first derivative
+    
+    # --- Final Evaluation ---
+    # 5. Evaluate the derivative spline *at the original unique x-values*
+    if original_x_points:
+        dy_dx_at_original_x = spl_deriv(x_original_unique) 
+        return x_original_unique, dy_dx_at_original_x
+    else:
+        dy_dx_at_resampled_x = spl_deriv(x_resample)
+        return x_resample, dy_dx_at_resampled_x
+
+
+def compute_polynomial_derivative(
+    x, 
+    y, 
+    n_fine=100, 
+    n_validation_factor=5, 
+    min_order=2, 
+    max_order=20, 
+    output_at='original', 
+    overfitting_tolerance=1e-2 
+):
+    """
+    Computes a smoothed derivative using polynomial fitting with validation.
+
+    Fits polynomials of increasing order to finely resampled data and uses
+    an even finer resampling for validation to select the best order, 
+    avoiding overfitting. The derivative of the best-fit polynomial is returned.
+
+    Parameters:
+    x (array-like): Original x-coordinates.
+    y (array-like): Original y-coordinates, corresponding to x.
+    n_fine (int): Number of points for the primary fitting dataset (resampled).
+    n_validation_factor (int): Multiplier for n_fine to determine the number
+                               of points in the validation dataset 
+                               (n_validation = n_fine * n_validation_factor).
+    min_order (int): Minimum polynomial order to try.
+    max_order (int): Maximum polynomial order to try. Must be less than n_fine.
+    output_at (str): Specifies the x-coordinates for the output derivative.
+                       'original': Output derivative at the unique original x values.
+                       'fine': Output derivative at the n_fine resampled x values.
+    overfitting_tolerance (float): Tolerance for early stopping. If the validation 
+                                   error increases by more than this fraction 
+                                   relative to the minimum error found so far, 
+                                   fitting stops. Set <= 0 to disable early stopping.
+
+    Returns:
+    tuple: (x_output, derivative_values) 
+           - x_output: x-coordinates where the derivative was evaluated.
+           - derivative_values: Corresponding smoothed derivative values.
+           Returns (None, None) if fitting fails or input is invalid.
+    """
+    x = np.array(x)
+    y = np.array(y)
+    n_validation = n_fine * n_validation_factor
+
+    # --- Input Validation and Preprocessing ---
+    if len(x) != len(y):
+        raise ValueError("x and y must have the same length.")
+    if len(x) < 2:
+        warnings.warn("Input arrays must have at least two points. Cannot compute derivative.")
+        return None, None
+    if max_order >= n_fine:
+         raise ValueError(f"max_order ({max_order}) must be less than n_fine ({n_fine}).")
+    if min_order < 0:
+         raise ValueError("min_order cannot be negative.")
+    if output_at not in ['original', 'fine']:
+        raise ValueError("output_at must be 'original' or 'fine'.")
+        
+    # Sort and handle duplicates
+    sort_idx = np.argsort(x)
+    x_sorted = x[sort_idx]
+    y_sorted = y[sort_idx]
+    
+    x_unique, unique_indices = np.unique(x_sorted, return_index=True)
+    if len(x_unique) < len(x_sorted):
+        warnings.warn("Duplicate x values found. Averaging corresponding y values.")
+        y_unique = np.array([np.mean(y_sorted[x_sorted == ux]) for ux in x_unique])
+    else:
+        y_unique = y_sorted[unique_indices] # Use sorted unique y directly
+
+    if len(x_unique) < 2:
+        warnings.warn("Need at least 2 unique points after handling duplicates. Cannot compute derivative.")
+        return None, None
+    # Need enough unique points for interpolation and minimum polynomial order
+    if len(x_unique) <= min_order:
+         warnings.warn(f"Need at least {min_order + 1} unique points for minimum polynomial order {min_order}, found {len(x_unique)}. Cannot proceed.")
+         return None, None
+         
+    # --- Generate Interpolation Function ---
+    # Use unique points as the basis for interpolation
+    try:
+        interp_func = interp1d(x_unique, y_unique, kind='linear', fill_value="extrapolate")
+    except ValueError as e:
+        warnings.warn(f"Could not create interpolation function: {e}")
+        return None, None
+
+    # --- Generate Fitting and Validation Data ---
+    x_min, x_max = np.min(x_unique), np.max(x_unique)
+    x_fine = np.linspace(x_min, x_max, n_fine)
+    y_fine = interp_func(x_fine)
+    
+    x_validation = np.linspace(x_min, x_max, n_validation)
+    y_validation = interp_func(x_validation)
+
+    # --- Iterative Polynomial Fitting and Validation ---
+    best_order = -1
+    min_validation_error = np.inf
+    best_coeffs = None
+
+    print(f"Fitting polynomial orders {min_order} to {max_order}...") # Optional progress indicator
+
+    for order in range(min_order, max_order + 1):
+        # Check if we have enough points for this order in the fitting set
+        if n_fine <= order:
+            warnings.warn(f"Skipping order {order}: n_fine ({n_fine}) is not greater than order.")
+            continue
+            
+        # Fit polynomial to the 'fine' dataset
+        try:
+            coeffs = np.polyfit(x_fine, y_fine, deg=order)
+        except (np.linalg.LinAlgError, ValueError) as e:
+            warnings.warn(f"Polyfit failed for order {order}: {e}. Stopping search.")
+            break # Stop if polyfit fails numerically
+
+        # Evaluate on the 'validation' dataset
+        poly = np.poly1d(coeffs)
+        y_predicted_validation = poly(x_validation)
+
+        # Calculate validation error (RMSE)
+        validation_error = np.sqrt(np.mean((y_predicted_validation - y_validation)**2))
+        
+        print(f"  Order {order}: Validation RMSE = {validation_error:.4g}") # Optional progress
+
+        # Check if this is the best model so far
+        if validation_error < min_validation_error:
+            min_validation_error = validation_error
+            best_order = order
+            best_coeffs = coeffs
+            print(f"    New best order: {best_order}") # Optional progress
+        # Check for overfitting (early stopping)
+        elif overfitting_tolerance > 0 and validation_error > min_validation_error * (1 + overfitting_tolerance):
+            print(f"    Validation error increased significantly. Stopping early at order {order}.")
+            break # Stop if error increases beyond tolerance compared to best
+
+    # --- Calculate Derivative of Best Polynomial ---
+    if best_coeffs is None:
+        warnings.warn("No suitable polynomial fit found within the specified orders.")
+        return None, None
+
+    print(f"Selected best polynomial order: {best_order}")
+    best_poly = np.poly1d(best_coeffs)
+    derivative_poly = best_poly.deriv()
+
+    # --- Evaluate Derivative at Chosen Points ---
+    if output_at == 'original':
+        x_output = x_unique
+        derivative_values = derivative_poly(x_output)
+        print(f"Evaluated derivative at {len(x_output)} original unique x points.")
+    elif output_at == 'fine':
+        x_output = x_fine
+        derivative_values = derivative_poly(x_output)
+        print(f"Evaluated derivative at {len(x_output)} fine resampled x points.")
+    else:
+        # This case should have been caught earlier, but added for robustness
+        raise ValueError("Internal error: Invalid output_at value.") 
+
+    return x_output, derivative_values
+
+
+def compute_derivative(x, y, order=1, method="basic", num_points=100, k=3, output_at="fine"):
     """
     Calculate higher-order derivatives using repeated application of np.diff().
 
@@ -184,6 +420,12 @@ def compute_derivative(x, y, order=1):
     Returns:
     tuple: (x_values, derivative_values)
     """
+    
+    if method == "bspline":
+        return compute_bspline_derivative(x, y, num_points, k)
+    elif method == "polynomial":
+        return compute_polynomial_derivative(x, y, output_at=output_at)
+    
     if order < 1:
         raise ValueError("Order must be at least 1")
 
@@ -770,11 +1012,11 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                                 bcp_label = bcp
 
                             if is_derivative:
-                                x_vals, y_vals = compute_derivative(x_values, y_values)
+                                x_vals, y_vals = compute_derivative(x_values, y_values, method="polynomial")
                                 ax.plot(
                                     x_vals[1:-1],
                                     y_vals[1:-1],
-                                    "-o",
+                                    "-" if smooth_derivatives else "-o",
                                     label=bcp_label,
                                     markersize=2,
                                 )
@@ -816,7 +1058,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
 
                                 if is_derivative:
                                     x_vals, y_vals = compute_derivative(
-                                        x_values, y_values
+                                        x_values, y_values, method="polynomial"
                                     )
                                     ax.plot(
                                         x_vals[1:-1],
