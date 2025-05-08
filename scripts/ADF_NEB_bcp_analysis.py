@@ -8,7 +8,7 @@ from scipy.interpolate import interp1d, make_interp_spline
 import matplotlib.pyplot as plt
 from datetime import datetime
 import re
-import warnings # To warn about potential issues
+import warnings  # To warn about potential issues
 # from concurrent.futures import ThreadPoolExecutor
 
 # This script is intended to be run on the results of a NEB calculation in AMS.
@@ -36,22 +36,31 @@ import warnings # To warn about potential issues
 # 2. You can restart using the "dill" file that is created inside the working directory of a previous run, which will use the previously run single-point calculations. This is useful for generating new sets of plots quickly
 # 3. You can run the script on previously processed CSV files to do statistical analysis or generate new plots.
 
-#### Run on one job at a time. It was initially intended to be able to run on multiple jobs, but in the course of development that has been temporarily broken.
+# Run on one job at a time. It was initially intended to be able to run on multiple jobs, but in the course of development that has been temporarily broken.
 
 # Define the path to the AMS job file (`path/to/job.ams`), or if you don't have an ams file, use
 # the path to the ams.rkf result file. Set the dill and csv paths to be empty in order to have the script use the AMS job file input.
-ams_job_paths = []
+ams_job_paths = [
+    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/No_Field/Cys_near_TS_NEB_NF/Cys_propane_near_TS.ams']
+# ams_job_paths = ['/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Field_n01/Cys_near_TS_NEB_n01/Cys_propane_near_TS_n01.ams',
+#                 '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Field_p01/Cys_near_TS_NEB_p01/Cys_propane_near_TS_p01.ams']
+# ams_job_paths = ['/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/No_Field/Full_reaction/Cys_propane_NEB_NF.ams',
+#                 '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Field_p01/Full_reaction/Cys_propane_NEB_p01.ams',
+#                 '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Field_n01/full_reaction/Cys_propane_NEB_n01.ams']
 
 # To rerun on a previously processed file, set the restart_dill_path to the path of the dill file in the working directory of the previous run. Otherwise, set to None, False, or ''. Set the csv paths to be an empty list if you want the script to use the dill file input.
-restart_dill_paths = ['/Users/haiiro/NoSync/2025_AMSPythonData/plams_workdir.004/Cys_propane_near_TS/Cys_propane_near_TS.dill']
+restart_dill_paths = [
+    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/plams_workdir.003/Cys_propane_near_TS_n01/Cys_propane_near_TS_n01.dill',
+    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/plams_workdir.003/Cys_propane_near_TS_p01/Cys_propane_near_TS_p01.dill']
 unrestricted_calculation = True
 
 # Define paths to previously created cp data CSV files in order to do statistical analysis.
 csv_file_paths = []
 
 # You can control the starting and ending NEB image number to include in the analysis here.
-start_image = 2 # 0 means the first image in the NEB, 1 means the second image, etc.
-end_image = 15  # -1 means the last image in the NEB
+# 0 means the first image in the NEB, 1 means the second image, etc.
+start_image = 0
+end_image = -1  # -1 means the last image in the NEB
 
 # Define atom pairs (pairs of atom numbers with associated descriptions) for which to extract bond critical point information.
 # One list for each input file defined above
@@ -67,6 +76,26 @@ atom_pairs_list = (  # one-based indices, same as shown in AMSView
     #     (1, 3): "Ring ≃ → -", # forming C-C ring C-C bond with (aromatic -> single) ring C
     #     (1, 11): "Ring to OH ≃ → -", # forming C-C ring C-C bond with (aromatic -> single) other ring C
     # },
+    {
+        (40, 47): "Breaking bond",  # CH
+        (47, 39): "Forming bond",  # OH
+        (1, 39): "",  # FeO
+        (1, 53): "Fe-Ligand",  # Fe-amino acid Cys
+        (1, 2): "",  # FeN
+        (1, 3): "",  # FeN
+        (1, 4): "",  # FeN
+        (1, 5): "",  # FeN
+    },
+    {
+        (40, 47): "Breaking bond",  # CH
+        (47, 39): "Forming bond",  # OH
+        (1, 39): "",  # FeO
+        (1, 53): "Fe-Ligand",  # Fe-amino acid Cys
+        (1, 2): "",  # FeN
+        (1, 3): "",  # FeN
+        (1, 4): "",  # FeN
+        (1, 5): "",  # FeN
+    },
     {
         (40, 47): "Breaking bond",  # CH
         (47, 39): "Forming bond",  # OH
@@ -108,15 +137,15 @@ user_eef = None  # (0.0, 0.0, 0.01)
 # new jobs they need to be V/Angstrom. The conversion factor is 51.4220861908324.
 eef_conversion_factor = 51.4220861908324
 # Define the EEF pairs
-eef_pairs = [("origEEF", eef_conversion_factor), ("revEEF", -eef_conversion_factor), ("noEEF", 0)]
-# eef_pairs = [("origEEF", eef_conversion_factor)]
+# eef_pairs = [("origEEF", eef_conversion_factor), ("revEEF", -eef_conversion_factor), ("noEEF", 0)]
+eef_pairs = [("origEEF", eef_conversion_factor)]
 ##### end EEF Settings #####
 
 ##### Extra interpolated single point settings #####
 # To get better resultion around the transition state, we'll identify the TS image (highest energy image)
 # and create additional images between it and the adjacent images, using a linear interpolation of the
 # coordinates of the adjacent images. Here, you specify how many extra images to add on *each* side of the TS image.
-num_extra_images = 3
+num_extra_images = 16
 # This then determines how many images to the left/right of the TS image to create. `num_extra_images` images will be created between each adjacent pair of images.
 # So "1" will result in `num_extra_images` images being added only between the TS image and its adjacent images,
 # while "3" will add `num_extra_images` between each image pair starting 3 images before the TS, etc.
@@ -144,15 +173,21 @@ plot_y_prop_list = [
 
 # This specifies properties to include in combined plots with rows for each y property and columns for each EEF type.
 # Additionally, the suffix " d/dx" causes the dy/dx derivative to be computed and plotted.
+# (For d/dx calculations, you can use the smoothed (polynomial fit) by includeing (smoothed) after the "d/dx" in the property name.
 combined_plots_y_prop_lists = {
     "Rho": ["Molecular bond energy", "Rho"],
     "Rho d/dx": ["Molecular bond energy", "Rho d/dx"],
+    "Rho d/dx (smoothed)": ["Molecular bond energy", "Rho d/dx (smoothed)"],
     "Angles": ["Molecular bond energy", "Theta", "Phi"],
     "Angles d/dx": ["Molecular bond energy", "Theta d/dx", "Phi d/dx"],
+    "Angles d/dx (smoothed)": ["Molecular bond energy", "Theta d/dx (smoothed)", "Phi d/dx (smoothed)"],
 }
 
+# Specify properties to be used as the x axis (independent variable) for the plots.
+# For each x-axis property specified, a full set of plots will be generated for each y property.
+# (Add " (reverse)" to reverse the x-axis direction)
 plot_x_prop_list = [
-    "H47-O39 distance",
+    "H47-O39 distance (reverse)",
     "NEB image",
 ]
 ##### end Plot settings #####
@@ -164,7 +199,7 @@ plot_x_prop_list = [
 # These parameters control that process.
 # Number of check points in each dimension. Increasing this value will result in a better approximation of
 # The spin A/B CP locations, but will increase densf runtime.
-num_check_points = 9
+num_check_points = 15
 # Fraction of the distance between the two atoms. Increasing this value will result in a search being
 # done over a larger region around the total-density CP location, and will increase the spacing between
 # the check points. If too small, the search grid may not include the true spin A/B CP locations.
@@ -183,6 +218,7 @@ num_cores = ceil(os.cpu_count() / 2)
 ########################################################################################
 # Step 0: define helper functions
 ########################################################################################
+
 
 def compute_bspline_derivative(x, y, num_points=200, k=21, original_x_points=False):
     """
@@ -211,23 +247,25 @@ def compute_bspline_derivative(x, y, num_points=200, k=21, original_x_points=Fal
         print("Warning: Input arrays must have at least two points.")
         return None, None
     if len(x) != len(y):
-         raise ValueError("x and y must have the same length.")
+        raise ValueError("x and y must have the same length.")
     if num_points <= k:
-         raise ValueError(f"Number of resampled points ({num_points}) must be greater than spline degree k ({k}).")
+        raise ValueError(
+            f"Number of resampled points ({num_points}) must be greater than spline degree k ({k}).")
 
     # Ensure x is sorted for interpolation/splines
     sort_idx = np.argsort(x)
     x_sorted = x[sort_idx]
     y_sorted = y[sort_idx]
-    
+
     # Handle duplicate x values by averaging corresponding y values
     # Keep track of the unique x values, as these are our target evaluation points
     x_original_unique, unique_indices = np.unique(x_sorted, return_index=True)
     if len(x_original_unique) < len(x_sorted):
         print("Warning: Duplicate x values found. Averaging corresponding y values.")
-        y_original_unique = np.array([np.mean(y_sorted[x_sorted == ux]) for ux in x_original_unique])
+        y_original_unique = np.array(
+            [np.mean(y_sorted[x_sorted == ux]) for ux in x_original_unique])
     else:
-        y_original_unique = y_sorted # No duplicates, use sorted y directly
+        y_original_unique = y_sorted  # No duplicates, use sorted y directly
 
     # Need at least k+1 unique points for spline of degree k
     # if len(x_original_unique) <= k:
@@ -236,24 +274,26 @@ def compute_bspline_derivative(x, y, num_points=200, k=21, original_x_points=Fal
 
     # --- Intermediate steps for smoothing ---
     # 1. Define evenly spaced x-values for resampling (for fitting the spline)
-    x_resample = np.linspace(np.min(x_original_unique), np.max(x_original_unique), num=num_points)
+    x_resample = np.linspace(np.min(x_original_unique),
+                             np.max(x_original_unique), num=num_points)
 
     # 2. Resample y using linear interpolation based on the unique original points
     #    Using interp1d requires at least 2 points. Handled by initial checks.
-    f_interp = interp1d(x_original_unique, y_original_unique, kind='linear', fill_value="extrapolate")
+    f_interp = interp1d(x_original_unique, y_original_unique,
+                        kind='linear', fill_value="extrapolate")
     y_resample = f_interp(x_resample)
 
     # 3. B-spline fit of the *resampled* data
     #    make_interp_spline requires k+1 points. Handled by initial checks.
     spl = make_interp_spline(x_resample, y_resample, k=k)
-    
+
     # 4. Compute the derivative of the B-spline
-    spl_deriv = spl.derivative(nu=1) # nu=1 for first derivative
-    
+    spl_deriv = spl.derivative(nu=1)  # nu=1 for first derivative
+
     # --- Final Evaluation ---
     # 5. Evaluate the derivative spline *at the original unique x-values*
     if original_x_points:
-        dy_dx_at_original_x = spl_deriv(x_original_unique) 
+        dy_dx_at_original_x = spl_deriv(x_original_unique)
         return x_original_unique, dy_dx_at_original_x
     else:
         dy_dx_at_resampled_x = spl_deriv(x_resample)
@@ -261,14 +301,15 @@ def compute_bspline_derivative(x, y, num_points=200, k=21, original_x_points=Fal
 
 
 def compute_polynomial_derivative(
-    x, 
-    y, 
-    n_fine=100, 
-    n_validation_factor=5, 
-    min_order=2, 
-    max_order=8, 
-    output_at='original', 
-    interior_percent=96, # Percentage of data range (centered) to use for validation error
+    x,
+    y,
+    n_fine=100,
+    n_validation_factor=5,
+    min_order=2,
+    max_order=9,
+    output_at='original',
+    # Percentage of data range (centered) to use for validation error
+    interior_percent=96,
     overfitting_tolerance=1e-4
 ):
     """
@@ -315,39 +356,47 @@ def compute_polynomial_derivative(
     if len(x) != len(y):
         raise ValueError("x and y must have the same length.")
     if len(x) < 2:
-        warnings.warn("Input arrays must have at least two points. Cannot compute derivative.")
+        warnings.warn(
+            "Input arrays must have at least two points. Cannot compute derivative.")
         return None, None
     if max_order >= n_fine:
-         raise ValueError(f"max_order ({max_order}) must be less than n_fine ({n_fine}).")
+        raise ValueError(
+            f"max_order ({max_order}) must be less than n_fine ({n_fine}).")
     if min_order < 0:
-         raise ValueError("min_order cannot be negative.")
+        raise ValueError("min_order cannot be negative.")
     if not (0 < interior_percent <= 100):
-        raise ValueError("interior_percent must be between 0 (exclusive) and 100 (inclusive).")
+        raise ValueError(
+            "interior_percent must be between 0 (exclusive) and 100 (inclusive).")
     if output_at not in ['original', 'fine']:
         raise ValueError("output_at must be 'original' or 'fine'.")
-        
+
     # Sort and handle duplicates
     sort_idx = np.argsort(x)
     x_sorted = x[sort_idx]
     y_sorted = y[sort_idx]
-    
+
     x_unique, unique_indices = np.unique(x_sorted, return_index=True)
     if len(x_unique) < len(x_sorted):
-        warnings.warn("Duplicate x values found. Averaging corresponding y values.")
-        y_unique = np.array([np.mean(y_sorted[x_sorted == ux]) for ux in x_unique])
+        warnings.warn(
+            "Duplicate x values found. Averaging corresponding y values.")
+        y_unique = np.array([np.mean(y_sorted[x_sorted == ux])
+                            for ux in x_unique])
     else:
-        y_unique = y_sorted[unique_indices] # Use sorted unique y directly
+        y_unique = y_sorted[unique_indices]  # Use sorted unique y directly
 
     if len(x_unique) < 2:
-        warnings.warn("Need at least 2 unique points after handling duplicates. Cannot compute derivative.")
+        warnings.warn(
+            "Need at least 2 unique points after handling duplicates. Cannot compute derivative.")
         return None, None
     if len(x_unique) <= min_order:
-         warnings.warn(f"Need at least {min_order + 1} unique points for minimum polynomial order {min_order}, found {len(x_unique)}. Cannot proceed.")
-         return None, None
-         
+        warnings.warn(
+            f"Need at least {min_order + 1} unique points for minimum polynomial order {min_order}, found {len(x_unique)}. Cannot proceed.")
+        return None, None
+
     # --- Generate Interpolation Function ---
     try:
-        interp_func = interp1d(x_unique, y_unique, kind='linear', fill_value="extrapolate")
+        interp_func = interp1d(
+            x_unique, y_unique, kind='linear', fill_value="extrapolate")
     except ValueError as e:
         warnings.warn(f"Could not create interpolation function: {e}")
         return None, None
@@ -356,7 +405,7 @@ def compute_polynomial_derivative(
     x_min, x_max = np.min(x_unique), np.max(x_unique)
     x_fine = np.linspace(x_min, x_max, n_fine)
     y_fine = interp_func(x_fine)
-    
+
     x_validation = np.linspace(x_min, x_max, n_validation)
     y_validation = interp_func(x_validation)
 
@@ -367,35 +416,38 @@ def compute_polynomial_derivative(
     else:
         margin = (100.0 - interior_percent) / 2.0 / 100.0
         idx_start = int(np.floor(n_validation * margin))
-        idx_end = int(np.ceil(n_validation * (1.0 - margin))) -1
+        idx_end = int(np.ceil(n_validation * (1.0 - margin))) - 1
         # Ensure indices are valid and range is sensible
         idx_start = max(0, idx_start)
         idx_end = min(n_validation - 1, idx_end)
         if idx_start >= idx_end:
-             warnings.warn(f"Interior range calculation resulted in non-positive length ({idx_start} to {idx_end}). Using full range.")
-             idx_start = 0
-             idx_end = n_validation - 1
-             
-    print(f"Using validation points from index {idx_start} to {idx_end} (inclusive) for max error calculation.")
+            warnings.warn(
+                f"Interior range calculation resulted in non-positive length ({idx_start} to {idx_end}). Using full range.")
+            idx_start = 0
+            idx_end = n_validation - 1
+
+    # print(f"Using validation points from index {idx_start} to {idx_end} (inclusive) for max error calculation.")
 
     # --- Iterative Polynomial Fitting and Validation ---
     best_order = -1
-    min_validation_max_error = np.inf # Now tracking minimum of the maximum errors
+    min_validation_max_error = np.inf  # Now tracking minimum of the maximum errors
     best_coeffs = None
 
-    print(f"Fitting polynomial orders {min_order} to {max_order}...") 
+    # print(f"Fitting polynomial orders {min_order} to {max_order}...")
 
     for order in range(min_order, max_order + 1):
         if n_fine <= order:
-            warnings.warn(f"Skipping order {order}: n_fine ({n_fine}) is not greater than order.")
+            warnings.warn(
+                f"Skipping order {order}: n_fine ({n_fine}) is not greater than order.")
             continue
-            
+
         # Fit polynomial to the 'fine' dataset
         try:
             coeffs = np.polyfit(x_fine, y_fine, deg=order)
         except (np.linalg.LinAlgError, ValueError) as e:
-            warnings.warn(f"Polyfit failed for order {order}: {e}. Stopping search.")
-            break 
+            warnings.warn(
+                f"Polyfit failed for order {order}: {e}. Stopping search.")
+            break
 
         # Evaluate on the 'validation' dataset
         poly = np.poly1d(coeffs)
@@ -403,27 +455,29 @@ def compute_polynomial_derivative(
 
         # Calculate Maximum Absolute Error over the INTERIOR range
         abs_errors = np.abs(y_predicted_validation - y_validation)
-        max_interior_error = np.max(abs_errors[idx_start:idx_end+1]) # Use slicing for interior
-        
-        print(f"  Order {order}: Max Interior Abs Error = {max_interior_error:.4g}") 
+        # Use slicing for interior
+        max_interior_error = np.max(abs_errors[idx_start:idx_end+1])
+
+        # print(f"  Order {order}: Max Interior Abs Error = {max_interior_error:.4g}")
 
         # Check if this is the best model so far based on max interior error
         if max_interior_error < min_validation_max_error:
             min_validation_max_error = max_interior_error
             best_order = order
             best_coeffs = coeffs
-            print(f"    New best order: {best_order}") 
+            # print(f"    New best order: {best_order}")
         # Check for overfitting (early stopping based on max interior error)
         elif overfitting_tolerance > 0 and max_interior_error > min_validation_max_error * (1 + overfitting_tolerance):
-            print(f"    Max interior error increased significantly. Stopping early at order {order}.")
-            break 
+            # print(f"    Max interior error increased significantly. Stopping early at order {order}.")
+            break
 
     # --- Calculate Derivative of Best Polynomial ---
     if best_coeffs is None:
-        warnings.warn("No suitable polynomial fit found within the specified orders.")
+        warnings.warn(
+            "No suitable polynomial fit found within the specified orders.")
         return None, None
 
-    print(f"Selected best polynomial order: {best_order} (based on min max interior error)")
+    # print(f"Selected best polynomial order: {best_order} (based on min max interior error)")
     best_poly = np.poly1d(best_coeffs)
     derivative_poly = best_poly.deriv()
 
@@ -431,18 +485,18 @@ def compute_polynomial_derivative(
     if output_at == 'original':
         x_output = x_unique
         derivative_values = derivative_poly(x_output)
-        print(f"Evaluated derivative at {len(x_output)} original unique x points.")
+        # print(f"Evaluated derivative at {len(x_output)} original unique x points.")
     elif output_at == 'fine':
         x_output = x_fine
         derivative_values = derivative_poly(x_output)
-        print(f"Evaluated derivative at {len(x_output)} fine resampled x points.")
+        # print(f"Evaluated derivative at {len(x_output)} fine resampled x points.")
     else:
-        raise ValueError("Internal error: Invalid output_at value.") 
+        raise ValueError("Internal error: Invalid output_at value.")
 
     # Store best_order alongside output if needed for plotting label
     # (We can't directly return it without changing signature, but it's printed)
     # If needed, could return a dictionary or tuple: (x_output, derivative_values, best_order)
-    
+
     return x_output, derivative_values, best_order
 
 
@@ -458,12 +512,13 @@ def compute_derivative(x, y, order=1, method="basic", num_points=100, k=3, outpu
     Returns:
     tuple: (x_values, derivative_values)
     """
-    
+
     if method == "bspline":
-        return compute_bspline_derivative(x, y, num_points, k)
+        out = compute_bspline_derivative(x, y, num_points, k)
+        return out[0], out[1], None
     elif method == "polynomial":
         return compute_polynomial_derivative(x, y, output_at=output_at)
-    
+
     if order < 1:
         raise ValueError("Order must be at least 1")
 
@@ -482,7 +537,7 @@ def compute_derivative(x, y, order=1, method="basic", num_points=100, k=3, outpu
         x_values = (x_values[1:] + x_values[:-1]) / 2
         y_values = derivative
 
-    return x_values, y_values
+    return x_values, y_values, None
 
 
 def log_print(*args, **kwargs):
@@ -525,7 +580,8 @@ def parse_cp_info(file_path):
                 eigenvalues = []
                 i += 2
                 while i < len(lines) and lines[i]:
-                    eigenvalues.extend([float(val) for val in lines[i].split()])
+                    eigenvalues.extend([float(val)
+                                       for val in lines[i].split()])
                     i += 1
                 cp_info["EIGENVALUES OF HESSIAN MATRIX"] = eigenvalues
                 continue
@@ -535,7 +591,8 @@ def parse_cp_info(file_path):
                 eigenvectors = []
                 i += 2
                 while i < len(lines) and lines[i]:
-                    eigenvectors.append([float(val) for val in lines[i].split()])
+                    eigenvectors.append([float(val)
+                                        for val in lines[i].split()])
                     i += 1
                 # transpose eigenvectors
                 eigenvectors = [
@@ -550,7 +607,8 @@ def parse_cp_info(file_path):
                 hessian_matrix = []
                 i += 2
                 while i < len(lines) and lines[i]:
-                    hessian_matrix.append([float(val) for val in lines[i].split()])
+                    hessian_matrix.append([float(val)
+                                          for val in lines[i].split()])
                     i += 1
                 # convert from upper-triangular to full matrix
                 for j in range(len(hessian_matrix)):
@@ -629,7 +687,8 @@ def get_bcp_properties(job, atom_pairs_dict, unrestricted=False):
         bcp_atom_indices.append(
             "-".join([f"{out_mol.atoms[pair[i]-1].symbol}{pair[i]}" for i in range(2)])
         )
-        bond_length = out_mol.atoms[pair[0] - 1].distance_to(out_mol.atoms[pair[1] - 1])
+        bond_length = out_mol.atoms[pair[0] -
+                                    1].distance_to(out_mol.atoms[pair[1] - 1])
         atom_pair_distances.append(bond_length)
         if unrestricted:
             # the CP locations in the unrestricted spin-a and spin-b densities are not the
@@ -644,7 +703,8 @@ def get_bcp_properties(job, atom_pairs_dict, unrestricted=False):
                 bond_length * check_point_grid_extent_fraction / num_check_points
             )
             origin = [
-                bcp_coords[-1][i] - check_point_spacing * (num_check_points - 1) / 2
+                bcp_coords[-1][i] - check_point_spacing *
+                (num_check_points - 1) / 2
                 for i in range(3)
             ]
             check_points = []
@@ -758,17 +818,17 @@ DenHess"""
                 total_rho_cp_ind = floor(num_check_points_total / 2)
                 grad_x = densf_kf[("SCF", f"DensityGradX_{field}")][
                     cp_ind
-                    * num_check_points_total : (cp_ind + 1)
+                    * num_check_points_total: (cp_ind + 1)
                     * num_check_points_total
                 ]
                 grad_y = densf_kf[("SCF", f"DensityGradY_{field}")][
                     cp_ind
-                    * num_check_points_total : (cp_ind + 1)
+                    * num_check_points_total: (cp_ind + 1)
                     * num_check_points_total
                 ]
                 grad_z = densf_kf[("SCF", f"DensityGradZ_{field}")][
                     cp_ind
-                    * num_check_points_total : (cp_ind + 1)
+                    * num_check_points_total: (cp_ind + 1)
                     * num_check_points_total
                 ]
                 grad_mags = [
@@ -813,12 +873,14 @@ DenHess"""
                     cp_data[out_cp_ind][f"Theta_{field}"] = atan(
                         sqrt(abs(ev[0] / ev[2]))
                     )
-                    cp_data[out_cp_ind][f"Phi_{field}"] = atan(sqrt(abs(ev[1] / ev[2])))
+                    cp_data[out_cp_ind][f"Phi_{field}"] = atan(
+                        sqrt(abs(ev[1] / ev[2])))
                 elif cp_codes[cpi - 1] == cp_type_codes["ring"]:
                     cp_data[out_cp_ind][f"Theta_{field}"] = atan(
                         sqrt(abs(ev[2] / ev[0]))
                     )
-                    cp_data[out_cp_ind][f"Phi_{field}"] = atan(sqrt(abs(ev[1] / ev[0])))
+                    cp_data[out_cp_ind][f"Phi_{field}"] = atan(
+                        sqrt(abs(ev[1] / ev[0])))
                 cp_data[out_cp_ind][f"HESSIAN MATRIX_{field}"] = hess.tolist()
                 cp_data[out_cp_ind][
                     f"EIGENVECTORS (ORTHONORMAL) OF HESSIAN MATRIX (COLUMNS)_{field}"
@@ -826,7 +888,8 @@ DenHess"""
                 cp_data[out_cp_ind][f"EIGENVALUES_{field}"] = ev.tolist()
 
             for field in ["A", "B"]:
-                get_saddle_t41_properties(out_cp_data, i, out_cp_data_cp_inds[i], field)
+                get_saddle_t41_properties(
+                    out_cp_data, i, out_cp_data_cp_inds[i], field)
 
     return out_cp_data
 
@@ -847,7 +910,8 @@ def generate_full_t41(job, output_dir):
     min_xyz = [min_xyz[i] - densf_bb_padding for i in range(3)]
     max_xyz = [max_xyz[i] + densf_bb_padding for i in range(3)]
     # compute number of points in each dimension based on the spacing
-    num_points = [int((max_xyz[i] - min_xyz[i]) / densf_bb_spacing) for i in range(3)]
+    num_points = [int((max_xyz[i] - min_xyz[i]) / densf_bb_spacing)
+                  for i in range(3)]
     total_num_points = num_points[0] * num_points[1] * num_points[2]
     outfile = os.path.join(output_dir, f"{job.name}_densf_full.t41")
 
@@ -924,6 +988,11 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
     eef_strs = ["origEEF", "revEEF", "noEEF"]
     has_eef = any([eef in str(image_names) for eef in eef_strs])
 
+    reverse_x_axis = [" (reverse)" in x_prop for x_prop in x_prop_list]
+    x_prop_list = [
+        x_prop.replace(" (reverse)", "") for x_prop in x_prop_list
+    ]
+
     all_props = []
     for prop in prop_list + x_prop_list:
         for cp_prop in cp_data[0].keys():
@@ -931,7 +1000,8 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                 all_props.append(cp_prop)
 
     bcp_prop_dict = {}
-    eef_types = ([f"_{eef[0]}" for eef in eef_pairs] + [""]) if has_eef else [""]
+    eef_types = ([f"_{eef[0]}" for eef in eef_pairs] +
+                 [""]) if has_eef else [""]
     for bcp in unique_bcp_atoms:
         bcp_prop_dict[bcp] = {}
         bcp_data = sorted(
@@ -960,30 +1030,36 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
         "": "-",  # solid (for non-EEF plots)
     }
 
-    for x_prop in x_prop_list:
-        
+    for xi, x_prop in enumerate(x_prop_list):
         x_prop_tuple = None
         if "distance" in x_prop.lower():
-            x_prop_tuple = tuple(map(int, re.findall(r"[a-zA-Z]{1,2}(\d+)-[a-zA-Z]{1,2}(\d+)", x_prop.lower().replace(" distance", ""))[0]))
+            x_prop_tuple = tuple(map(int, re.findall(
+                r"[a-zA-Z]{1,2}(\d+)-[a-zA-Z]{1,2}(\d+)", x_prop.lower().replace(" distance", ""))[0]))
             if x_prop_tuple not in atom_pairs_dict:
                 # reverse tuple order
                 x_prop_tuple = (x_prop_tuple[1], x_prop_tuple[0])
                 if x_prop_tuple not in atom_pairs_dict:
-                    log_print(f"Warning: Atom pair {x_prop_tuple} not found in atom_pairs_dict.")
+                    log_print(
+                        f"Warning: Atom pair {x_prop_tuple} not found in atom_pairs_dict.")
                     x_prop_tuple = None
-        
+
         if x_prop_tuple and len(atom_pairs_dict[x_prop_tuple]) > 0:
             x_prop_label = x_prop + ": (" + atom_pairs_dict[x_prop_tuple] + ")"
         else:
             x_prop_label = x_prop
-        
+
         for plot_name, y_prop_list in combined_y_prop_lists.items():
             log_print(
                 f"Plotting combined plots for {plot_name} vs {x_prop} for bond CPs"
             )
+
+            smooth_derivatives = []
             # Expand y_prop_list to include A, B, and total variants
             expanded_y_prop_list = []
             for y_prop in y_prop_list:
+                smooth_derivatives.append(" (smoothed)" in y_prop)
+                if smooth_derivatives[-1]:
+                    y_prop = y_prop.replace(" (smoothed)", "")
                 if " d/dx" in y_prop:
                     base_prop = y_prop.replace(" d/dx", "")
                     if f"{base_prop}_A" in all_props:
@@ -994,10 +1070,15 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                                 f"{base_prop} d/dx",
                             ]
                         )
+                        smooth_derivatives.extend(
+                            [smooth_derivatives[-1], smooth_derivatives[-1]])
                     else:
                         expanded_y_prop_list.append(y_prop)
                 elif f"{y_prop}_A" in all_props:
-                    expanded_y_prop_list.extend([f"{y_prop}_A", f"{y_prop}_B", y_prop])
+                    expanded_y_prop_list.extend(
+                        [f"{y_prop}_A", f"{y_prop}_B", y_prop])
+                    smooth_derivatives.extend(
+                        [smooth_derivatives[-1], smooth_derivatives[-1]])
                 else:
                     expanded_y_prop_list.append(y_prop)
 
@@ -1018,16 +1099,23 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                     continue
 
                 is_derivative = " d/dx" in y_prop
-                base_prop = y_prop.replace(" d/dx", "") if is_derivative else y_prop
+                base_prop = y_prop.replace(
+                    " d/dx", "") if is_derivative else y_prop
 
                 for j, eef in enumerate(eef_types):
                     if num_eef > 1:
-                        ax = axs[i, j] if len(expanded_y_prop_list) > 1 else axs[j]
+                        ax = axs[i, j] if len(
+                            expanded_y_prop_list) > 1 else axs[j]
                     else:
                         ax = axs[i] if len(expanded_y_prop_list) > 1 else axs
-                    ax.set_title(f"{y_prop}{eef} vs {x_prop_label}", fontsize=9)
+                    ax.set_title(
+                        f"{y_prop}{eef} vs {x_prop_label}", fontsize=9)
                     ax.set_xlabel(x_prop_label)
                     ax.set_ylabel(y_prop)
+                    if reverse_x_axis[xi]:
+                        print(
+                            f"Reversing x-axis for {x_prop_label=} and {y_prop=}")
+                        ax.invert_xaxis()
 
                     for bcp, bcp_props in bcp_prop_dict.items():
                         x_values = bcp_props.get(f"{x_prop}", None)
@@ -1042,17 +1130,27 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                                         f"Warning: Unexpected length mismatch for {bcp}. Skipping this plot."
                                     )
                                     continue
-                            x_values, y_values = zip(*sorted(zip(x_values, y_values)))
-                            
-                            atom_pair_tuple = tuple(map(int, re.findall(r"[a-zA-Z]{1,2}(\d+)-[a-zA-Z]{1,2}(\d+)", bcp)[0]))
+                            x_values, y_values = zip(
+                                *sorted(zip(x_values, y_values)))
+
+                            atom_pair_tuple = tuple(
+                                map(int, re.findall(r"[a-zA-Z]{1,2}(\d+)-[a-zA-Z]{1,2}(\d+)", bcp)[0]))
                             if len(atom_pairs_dict[atom_pair_tuple]) > 0:
                                 bcp_label = f"{bcp} ({atom_pairs_dict[atom_pair_tuple]})"
                             else:
                                 bcp_label = bcp
 
                             if is_derivative:
-                                x_vals, y_vals, order = compute_derivative(x_values, y_values, method="polynomial")
-                                bcp_label += f" (order {order})"
+
+                                x_vals, y_vals, order = compute_derivative(x_values, y_values, method=(
+                                    "polynomial" if smooth_derivatives[i] else "basic"))
+                                
+                                if reverse_x_axis[xi]:
+                                    # negate y values
+                                    y_vals = [-y for y in y_vals]
+                                
+                                if order is not None:
+                                    bcp_label += f"\n(order {order})"
                                 ax.plot(
                                     x_vals[1:-1],
                                     y_vals[1:-1],
@@ -1064,8 +1162,8 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                                 ax.plot(
                                     x_values, y_values, "-o", label=bcp_label, markersize=2
                                 )
-
-                    ax.legend(loc="upper left", bbox_to_anchor=(1, 1), fontsize=7)
+                    ax.legend(loc="upper left",
+                              bbox_to_anchor=(1, 1), fontsize=7)
                     ax.grid(True)
 
                 # Add the "All EEF" plot in the fourth column
@@ -1075,9 +1173,15 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                         if len(expanded_y_prop_list) > 1
                         else axs[num_eef]
                     )
-                    ax.set_title(f"{y_prop} vs {x_prop_label} (All EEF)", fontsize=9)
+                    ax.set_title(
+                        f"{y_prop} vs {x_prop_label} (All EEF)", fontsize=9)
                     ax.set_xlabel(x_prop_label)
                     ax.set_ylabel(y_prop)
+
+                    if reverse_x_axis[xi]:
+                        print(
+                            f"Reversing x-axis for {x_prop_label=} and {y_prop=}")
+                        ax.invert_xaxis()
 
                     for bcp, bcp_props in bcp_prop_dict.items():
                         for eef in ["_origEEF", "_noEEF", "_revEEF"]:
@@ -1096,16 +1200,24 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                                     *sorted(zip(x_values, y_values))
                                 )
 
+                                bcp_label = f"{bcp}{eef}"
+
                                 if is_derivative:
                                     x_vals, y_vals, order = compute_derivative(
-                                        x_values, y_values, method="polynomial"
+                                        x_values, y_values, method=(
+                                            "polynomial" if smooth_derivatives[i] else "basic")
                                     )
-                                    bcp_label += f" (order {order})"
+                                    if reverse_x_axis[xi]:
+                                        # negate y values
+                                        y_vals = [-y for y in y_vals]
+                                    
+                                    if order is not None:
+                                        bcp_label += f" (order {order})"
                                     ax.plot(
                                         x_vals[1:-1],
                                         y_vals[1:-1],
                                         f"{line_styles[eef]}o",
-                                        label=f"{bcp}{eef}",
+                                        label=bcp_label,
                                         markersize=0,
                                     )
                                 else:
@@ -1117,15 +1229,18 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                                         markersize=0,
                                     )
 
-                    ax.legend(loc="upper left", bbox_to_anchor=(1, 1), fontsize=7)
+                    ax.legend(loc="upper left",
+                              bbox_to_anchor=(1, 1), fontsize=7)
                     ax.grid(True)
 
             plt.tight_layout()
             # Determine top padding based on number of rows; the more rows, the less padding
             top = min(0.995, 0.9 + 0.02 * len(expanded_y_prop_list))
             plt.subplots_adjust(top=top)  # Add more padding at the top
-            f_base = f"{job_name}combined_{x_prop}_{plot_name}.png".replace("/", "-")
-            plt.savefig(os.path.join(out_dir, f_base), dpi=300, bbox_inches="tight")
+            f_base = f"{job_name}combined_{x_prop}_{plot_name}.png".replace(
+                "/", "-")
+            plt.savefig(os.path.join(out_dir, f_base),
+                        dpi=300, bbox_inches="tight")
             plt.close()
 
     return
@@ -1155,14 +1270,17 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                                     f"Warning: Unexpected length mismatch for {bcp}. Skipping this plot."
                                 )
                                 continue
-                        x_values, y_values = zip(*sorted(zip(x_values, y_values)))
-                        ax.plot(x_values, y_values, "-o", label=bcp, markersize=2)
+                        x_values, y_values = zip(
+                            *sorted(zip(x_values, y_values)))
+                        ax.plot(x_values, y_values, "-o",
+                                label=bcp, markersize=2)
                     else:
                         ax = None
                         plt.close()
                         break
                 if ax:
-                    ax.legend(loc="upper left", bbox_to_anchor=(1, 1), fontsize=7)
+                    ax.legend(loc="upper left",
+                              bbox_to_anchor=(1, 1), fontsize=7)
                     plt.subplots_adjust(right=0.75)
                     ax.grid(True)
                     plt.tight_layout()
@@ -1175,7 +1293,8 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
 
             # Combined EEF plot (as in the original function)
             if has_eef:
-                log_print(f"Plotting {y_prop} vs {x_prop} for bond CPs (All EEF)")
+                log_print(
+                    f"Plotting {y_prop} vs {x_prop} for bond CPs (All EEF)")
                 fig, ax = plt.subplots()
                 ax.set_title(
                     f"{job_name}: {y_prop} vs {x_prop} for bond CPs (All EEF)",
@@ -1196,7 +1315,8 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                                         f"Warning: Unexpected length mismatch for {bcp}. Skipping this plot."
                                     )
                                     continue
-                            x_values, y_values = zip(*sorted(zip(x_values, y_values)))
+                            x_values, y_values = zip(
+                                *sorted(zip(x_values, y_values)))
                             ax.plot(
                                 x_values,
                                 y_values,
@@ -1209,7 +1329,8 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                             plt.close()
                             break
                 if ax:
-                    ax.legend(loc="upper left", bbox_to_anchor=(1, 1), fontsize=7)
+                    ax.legend(loc="upper left",
+                              bbox_to_anchor=(1, 1), fontsize=7)
                     plt.subplots_adjust(right=0.75)
                     ax.grid(True)
                     plt.savefig(
@@ -1245,7 +1366,8 @@ def write_csv(cp_data, input_file_path):
                             ]
                         )
                 else:  # 1D list
-                    all_keys.update([f"{key}_{axis}" for axis in ["X", "Y", "Z"]])
+                    all_keys.update(
+                        [f"{key}_{axis}" for axis in ["X", "Y", "Z"]])
             else:
                 all_keys.add(key)
     # Sort the keys
@@ -1370,18 +1492,22 @@ def main(ams_job_path, atom_pairs):
 
     term_status = kf[("General", "termination status")]
 
-    log_print(f"Processing job {input_job_name} with termination status {term_status}")
+    log_print(
+        f"Processing job {input_job_name} with termination status {term_status}")
 
-    is_unrestricted = "Unrestricted Yes".lower() in kf[("General", "user input")].lower()
+    is_unrestricted = "Unrestricted Yes".lower(
+    ) in kf[("General", "user input")].lower()
 
     # Check if EEF is present
-    has_eef = ("im0.eeEField" in kf.read_section("NEB").keys() and any(float(i) != 0.0 for i in kf[("NEB", "im0.eeEField")])) or user_eef is not None
-    
+    has_eef = ("im0.eeEField" in kf.read_section("NEB").keys() and any(
+        float(i) != 0.0 for i in kf[("NEB", "im0.eeEField")])) or user_eef is not None
+
     if has_eef:
-        log_print(f"Using user-defined EEF: {user_eef}" if user_eef is not None else "EEF is present in the NEB job.")
+        log_print(
+            f"Using user-defined EEF: {user_eef}" if user_eef is not None else "EEF is present in the NEB job.")
     else:
         log_print("No EEF present in the NEB job. Proceeding without EEF.")
-    
+
     user_input = kf[("General", "user input")]
 
     # Get exiting job object from run file
@@ -1393,7 +1519,7 @@ def main(ams_job_path, atom_pairs):
 
     input_job = AMSJob.from_inputfile(run_file_path)
     input_job_mol = input_job.molecule['']
-    
+
     # log_print(input_job_mol.properties)
     # log_print(input_job_mol[1].properties)
     # return
@@ -1404,7 +1530,7 @@ def main(ams_job_path, atom_pairs):
     ams_settings = Settings()
     ams_settings.task = "SinglePoint"
     base_settings.input.ams = ams_settings
-    
+
     log_print("Base settings for Single points (minus any applied EEFs):")
     log_print(base_settings)
 
@@ -1416,8 +1542,9 @@ def main(ams_job_path, atom_pairs):
     num_images = kf[("NEB", "nebImages")] + 2
 
     highest_index_image = kf[("NEB", "highestIndex")]
-    
-    log_print( f"Total number of images in NEB: {num_images}, highest index image: {highest_index_image}")
+
+    log_print(
+        f"Total number of images in NEB: {num_images}, highest index image: {highest_index_image}")
 
     ########################################################################################
     # Step 2: create jobs for each image and then run them
@@ -1426,7 +1553,7 @@ def main(ams_job_path, atom_pairs):
     jobs = MultiJob(name=input_job_name)
 
     im_num = 0
-    
+
     extra_image_nums = list(range(
         highest_index_image - extra_images_num_adjacent_images,
         highest_index_image + extra_images_num_adjacent_images
@@ -1435,7 +1562,8 @@ def main(ams_job_path, atom_pairs):
 
     for i in range(num_images):
         if i < start_image or (i > end_image and end_image > 0):
-            log_print(f"Skipping image {i} as it is outside the specified range of NEB images to include.")
+            log_print(
+                f"Skipping image {i} as it is outside the specified range of NEB images to include.")
             im_num += 1
             continue
         num_atoms = kf[("NEB", f"im{i}.nAtoms")]
@@ -1448,8 +1576,9 @@ def main(ams_job_path, atom_pairs):
         for j in range(num_species):
             if any(char.isdigit() for char in species_symbols[j]):
                 species_symbols[j] = kf[("NEB", f"im{i}.sp{j+1}inputSymbol")]
-        
-        species_Z = [kf[("NEB", f"im{i}.sp{j+1}Z")] for j in range(num_species)]
+
+        species_Z = [kf[("NEB", f"im{i}.sp{j+1}Z")]
+                     for j in range(num_species)]
         atom_species = [
             species_symbols[atom_species_indices[j] - 1] for j in range(num_atoms)
         ]
@@ -1462,16 +1591,18 @@ def main(ams_job_path, atom_pairs):
         ]  # to convert to angstrom for comparison to coords shown in ADFMovie
 
         # coords is a 1D list of coordinates, so we need to reshape it to a 2D list
-        atom_coords = [tuple(coords[i : i + 3]) for i in range(0, len(coords), 3)]
+        atom_coords = [tuple(coords[i: i + 3])
+                       for i in range(0, len(coords), 3)]
 
         # create molecule for image
         im_mol = Molecule(positions=atom_coords, numbers=atom_numbers)
-        im_mol.properties = input_job.molecule[''].properties.copy()  # copy properties from the input job
+        # copy properties from the input job
+        im_mol.properties = input_job.molecule[''].properties.copy()
         im_mol.guess_bonds()
         # Now add atom properties from input job molecule
         for j in range(len(input_job_mol.atoms)):
             im_mol.atoms[j].properties = input_job_mol.atoms[j].properties.copy()
-        
+
         moles = [im_mol]
 
         if i in extra_image_nums:
@@ -1483,11 +1614,13 @@ def main(ams_job_path, atom_pairs):
 
             # coords is a 1D list of coordinates, so we need to reshape it to a 2D list
             ip1_atom_coords = [
-                tuple(ip1_coords[i : i + 3]) for i in range(0, len(ip1_coords), 3)
+                tuple(ip1_coords[i: i + 3]) for i in range(0, len(ip1_coords), 3)
             ]
             ip1_mol = Molecule(positions=ip1_atom_coords, numbers=atom_numbers)
-            ip1_mol.properties = im_mol.properties.copy()  # copy properties from the input job
-            moles.extend(interpolate_molecules(im_mol, ip1_mol, num_extra_images))
+            # copy properties from the input job
+            ip1_mol.properties = im_mol.properties.copy()
+            moles.extend(interpolate_molecules(
+                im_mol, ip1_mol, num_extra_images))
             is_in_extra_image_range = True
         else:
             is_in_extra_image_range = False
@@ -1499,10 +1632,11 @@ def main(ams_job_path, atom_pairs):
                     None
                     if not has_eef
                     else (
-                        kf[("NEB", f"im{i}.eeEField")] if user_eef is None else user_eef
+                        kf[("NEB", f"im{i}.eeEField")
+                           ] if user_eef is None else user_eef
                     )
                 )
-                
+
                 job_settings = base_settings.copy()
                 for eef_pair in eef_pairs:
                     eef_name, eef_val = eef_pair
@@ -1512,11 +1646,12 @@ def main(ams_job_path, atom_pairs):
                     s.ElectrostaticEmbedding.ElectricField = eef_str
                     job_settings.input.ams.system = s
                     job_name = f"{input_job_name}_{eef_name}_im{im_num:03d}"
-                    job = AMSJob(molecule=mol, settings=job_settings, name=job_name)
+                    job = AMSJob(
+                        molecule=mol, settings=job_settings, name=job_name)
                     jobs.children.append(job)
                     if is_in_extra_image_range and mol != moles[0]:
                         extra_image_job_names.append(job_name)
-                    
+
                     # save job runscript for inspection
                     # run_file_path = f"{job_name}.run"
                     # with open(run_file_path, "w") as run_file:
@@ -1526,11 +1661,12 @@ def main(ams_job_path, atom_pairs):
             else:
                 # no EEF, so only need to run one job for the image
                 job_name = f"{input_job_name}_im{im_num:03d}"
-                job = AMSJob(molecule=mol, settings=base_settings, name=job_name)
+                job = AMSJob(
+                    molecule=mol, settings=base_settings, name=job_name)
                 jobs.children.append(job)
                 if is_in_extra_image_range and mol != moles[0]:
                     extra_image_job_names.append(job_name)
-                    
+
                 # save job runscript for inspection
                 # run_file_path = f"{job_name}.run"
                 # with open(run_file_path, "w") as run_file:
@@ -1550,7 +1686,7 @@ def main(ams_job_path, atom_pairs):
                 log_print(
                     f"{job.name}: {bond_name} distance = {job.molecule.atoms[atom_nums[0]-1].distance_to(job.molecule.atoms[atom_nums[1]-1])}{suffix}"
                 )
-    
+
     # return
 
     log_print(f"Running {len(jobs.children)} jobs...")
@@ -1585,7 +1721,8 @@ def process_results(jobs, atom_pairs, path, prop_list, x_prop_list, unrestricted
     # We'll save results to a single CSV file in the results_dir
     total_cp_data = []
     for job in jobs.children:
-        cp_data = get_bcp_properties(job, atom_pairs, unrestricted=unrestricted)
+        cp_data = get_bcp_properties(
+            job, atom_pairs, unrestricted=unrestricted)
         total_cp_data.extend(cp_data)
 
     write_csv(total_cp_data, path)
@@ -1696,7 +1833,8 @@ def prepare_bcp_crossing_df(
     # Step 2: Create nested dict of BCP interpolations
     def prepare_bcp_interpolations(df_full, rxn_coord_name, system_eef_pairs):
         # First, identify float columns that aren't the reaction coordinate
-        float_cols = df_full.select_dtypes(include=[np.float64, np.float32]).columns
+        float_cols = df_full.select_dtypes(
+            include=[np.float64, np.float32]).columns
         prop_cols = [col for col in float_cols]
 
         # Initialize the outer dictionary
@@ -1757,7 +1895,7 @@ def prepare_bcp_crossing_df(
 
                 # For each pair of BCPs
                 for i, bcp1 in enumerate(bcps):
-                    for bcp2 in bcps[i + 1 :]:
+                    for bcp2 in bcps[i + 1:]:
                         # Get Rho interpolations for both BCPs
                         rho1 = bcp_interps[system_eef][bcp1][crossing_var_name]
                         rho2 = bcp_interps[system_eef][bcp2][crossing_var_name]
@@ -1811,7 +1949,8 @@ def prepare_bcp_crossing_df(
         # Find crossings that occur in all systems
         first_var_system_key = list(all_system_crossings.keys())[0]
         all_crossings = set(
-            all_system_crossings[first_var_system_key][system_eef_pairs[0]].keys()
+            all_system_crossings[first_var_system_key][system_eef_pairs[0]].keys(
+            )
         )
         for var_systems in all_system_crossings.values():
             for system_eef in system_eef_pairs:
@@ -1909,7 +2048,8 @@ def prepare_bcp_crossing_df(
                 for dist_col in distance_cols:
                     bcp_name = dist_col.replace(" distance", "")
                     dist_interp = bcp_interps[system_eef][first_bcp][dist_col]
-                    row[f"$d_{{\\rm{{{bcp_name}}}}}$"] = np.float64(dist_interp(R))
+                    row[f"$d_{{\\rm{{{bcp_name}}}}}$"] = np.float64(
+                        dist_interp(R))
 
                 # Add theta/phi crossing information if requested
                 if use_theta_phi_crossings:
@@ -1965,7 +2105,8 @@ def prepare_bcp_crossing_df(
     # Step 1: Create sorted list of unique SYSTEM-EEF pairs
     # Create system_eef identifiers and get unique sorted list
     system_eef_pairs = sorted(
-        set(f"{system}_{eef}" for system, eef in zip(df_full["SYSTEM"], df_full["EEF"]))
+        set(f"{system}_{eef}" for system, eef in zip(
+            df_full["SYSTEM"], df_full["EEF"]))
     )
 
     # Apply whitelists if provided
@@ -1979,7 +2120,8 @@ def prepare_bcp_crossing_df(
         ]
 
     # Step 2: Prepare BCP interpolations
-    bcp_interps = prepare_bcp_interpolations(df_full, rxn_coord_name, system_eef_pairs)
+    bcp_interps = prepare_bcp_interpolations(
+        df_full, rxn_coord_name, system_eef_pairs)
 
     # Step 3: Find BCP rho crossings for each system (and each spin if present) (and theta and phi crossings if requested)
     all_system_crossings = identify_all_system_crossings(
@@ -2025,9 +2167,9 @@ def statistical_analysis(
     from sklearn.decomposition import PCA
     from boruta import BorutaPy
     from sklearn.ensemble import RandomForestRegressor
-    
+
     use_spin_delta_e_r = False
-    
+
     ### BEGIN HELPER FUNCTIONS ###
 
     # Generate correlations matrices from a provided DataFrame
@@ -2060,7 +2202,7 @@ def statistical_analysis(
             .unique()
         )
         bcp_crossings = df["BCP_CROSSING"].unique()
-        
+
         unique_sys = "+".join(df["SYSTEM"].unique().tolist())
         if any("{A" in c or "{B" in c for c in df.columns):
             unique_sys += "_spin"
@@ -2110,10 +2252,12 @@ def statistical_analysis(
         plt.close()
 
         # Save correlation matrix as CSV
-        corr_matrix.to_csv(os.path.join(output_dir, f"correlation_matrix_{unique_sys}.csv"))
+        corr_matrix.to_csv(os.path.join(
+            output_dir, f"correlation_matrix_{unique_sys}.csv"))
 
         # Reset matplotlib parameters to default
-        plt.rcParams.update({"text.usetex": False, "font.family": "sans-serif"})
+        plt.rcParams.update(
+            {"text.usetex": False, "font.family": "sans-serif"})
 
     def perform_pca(
         df: pd.DataFrame,
@@ -2152,7 +2296,7 @@ def statistical_analysis(
             .unique()
         )
         bcp_crossings = df["BCP_CROSSING"].unique()
-        
+
         unique_sys = "+".join(df["SYSTEM"].unique().tolist())
         if any("{A" in c or "{B" in c for c in df.columns):
             unique_sys += "_spin"
@@ -2193,7 +2337,8 @@ def statistical_analysis(
         with open(os.path.join(output_dir, f"variance_explained_{unique_sys}.txt"), "w") as f:
             f.write("Variance explained by each component:\n")
             for i, var in enumerate(var_ratio):
-                f.write(f"PC{i+1}: {var:.4f} ({cum_var_ratio[i]:.4f} cumulative)\n")
+                f.write(
+                    f"PC{i+1}: {var:.4f} ({cum_var_ratio[i]:.4f} cumulative)\n")
 
         # 1. Scree plot
         plt.figure(figsize=(10, 6))
@@ -2231,7 +2376,8 @@ def statistical_analysis(
             )
 
         # Add circle
-        circle = plt.Circle((0, 0), 1, fill=False, linestyle="--", color="gray")
+        circle = plt.Circle((0, 0), 1, fill=False,
+                            linestyle="--", color="gray")
         plt.gca().add_patch(circle)
         plt.axis("equal")
         plt.xlabel(f"PC1 ({var_ratio[0]:.2%} variance explained)")
@@ -2253,7 +2399,8 @@ def statistical_analysis(
 
         # Create marker and color mappings
         markers = ["o", "s", "^", "v", "D", "p", "h8"]  # add more if needed
-        system_markers = dict(zip(unique_systems, markers[: len(unique_systems)]))
+        system_markers = dict(
+            zip(unique_systems, markers[: len(unique_systems)]))
 
         # Use a colormap suitable for the number of BCP crossings (fill colors)
         colors = plt.cm.tab10(np.linspace(0, 1, len(unique_bcps)))
@@ -2363,13 +2510,15 @@ def statistical_analysis(
 
         # 4. Loadings heatmap
         plt.figure(figsize=(12, 8))
-        num_pcs = min(5, len(loadings))  # Show first 5 PCs or all if less than 5
+        # Show first 5 PCs or all if less than 5
+        num_pcs = min(5, len(loadings))
         loadings_df = pd.DataFrame(
             loadings[:num_pcs].T,
             columns=[f"PC{i+1}" for i in range(num_pcs)],
             index=feature_cols,
         )
-        sns.heatmap(loadings_df, cmap="RdBu_r", center=0, annot=True, fmt=".2f")
+        sns.heatmap(loadings_df, cmap="RdBu_r",
+                    center=0, annot=True, fmt=".2f")
         plt.title(f"PCA Loadings Heatmap (systems: {unique_sys})")
         plt.tight_layout()
         plt.savefig(
@@ -2380,7 +2529,8 @@ def statistical_analysis(
         plt.close()
 
         # Save loadings to CSV
-        loadings_df.to_csv(os.path.join(output_dir, f"pca_loadings_{unique_sys}.csv"))
+        loadings_df.to_csv(os.path.join(
+            output_dir, f"pca_loadings_{unique_sys}.csv"))
 
         # Create DataFrame with transformed features
         pca_df = pd.DataFrame(
@@ -2388,20 +2538,21 @@ def statistical_analysis(
         )
 
         # Reset matplotlib parameters to default
-        plt.rcParams.update({"text.usetex": False, "font.family": "sans-serif"})
+        plt.rcParams.update(
+            {"text.usetex": False, "font.family": "sans-serif"})
 
         return pca, pca_df
 
     def perform_boruta(df: pd.DataFrame,
-                    target_col: int,
-                    output_dir: str,
-                    max_iter: int = 100,
-                    perc: int = 100,
-                    alpha: float = 0.05,
-                    random_state: int = 42) -> pd.DataFrame:
+                       target_col: int,
+                       output_dir: str,
+                       max_iter: int = 100,
+                       perc: int = 100,
+                       alpha: float = 0.05,
+                       random_state: int = 42) -> pd.DataFrame:
         """
         Performs Boruta feature selection with adjustable sensitivity parameters.
-        
+
         Args:
             df Input DataFrame
             target_col: Index of target column among numeric columns
@@ -2411,40 +2562,42 @@ def statistical_analysis(
             alpha: P-value threshold for feature importance (default 0.05)
                 Lower values = more strict feature selection
             random_state: Random state for reproducibility
-        
+
         Returns:
             DataFrame with selected features and target column
         """
         # Get numeric columns
         numeric_df = df.select_dtypes(include=[np.number])
-        feature_cols = [col for i, col in enumerate(numeric_df.columns) if i != target_col]
+        feature_cols = [col for i, col in enumerate(
+            numeric_df.columns) if i != target_col]
         target_name = numeric_df.columns[target_col]
-        
+
         unique_sys = "+".join(df["SYSTEM"].unique().tolist())
         if any("{A" in c or "{B" in c for c in df.columns):
             unique_sys += "_spin"
         if any("theta" in c or "phi" in c for c in df.columns):
             unique_sys += "_directionality"
-        
-        print(f"Performing Boruta feature selection for target column: {target_name}")
-        
+
+        print(
+            f"Performing Boruta feature selection for target column: {target_name}")
+
         # Prepare X and y
         X = numeric_df[feature_cols]
         y = numeric_df[target_name]
-        
+
         # Initialize Random Forest classifier
         rf = RandomForestRegressor(n_jobs=-1, random_state=random_state)
-        
+
         # Initialize and run Boruta
         boruta = BorutaPy(rf, n_estimators='auto',
-                        max_iter=max_iter,
-                        perc=perc,
-                        alpha=alpha,
-                        random_state=random_state)
-        
+                          max_iter=max_iter,
+                          perc=perc,
+                          alpha=alpha,
+                          random_state=random_state)
+
         # Fit Boruta
         boruta.fit(X.values, y.values)
-        
+
         # Create output directory if it doesn't exist
         os.makedirs(output_dir, exist_ok=True)
         # Create detailed results file
@@ -2457,36 +2610,37 @@ def statistical_analysis(
             f.write(f"- Percentile threshold: {perc}\n")
             f.write(f"- Significance level (alpha): {alpha}\n")
             f.write(f"- Target variable: {target_name}\n\n")
-            
+
             # Write feature selection results
             selected_features = X.columns[boruta.support_].tolist()
             tentative_features = X.columns[boruta.support_weak_].tolist()
-            rejected_features = [feat for feat in X.columns 
-                            if feat not in selected_features + tentative_features]
-            
+            rejected_features = [feat for feat in X.columns
+                                 if feat not in selected_features + tentative_features]
+
             f.write("Selected Features:\n")
             for feat in selected_features:
                 f.write(f"- {feat}\n")
             f.write(f"\nTotal selected features: {len(selected_features)}\n\n")
-            
+
             f.write("Tentative Features:\n")
             for feat in tentative_features:
                 f.write(f"- {feat}\n")
-            f.write(f"\nTotal tentative features: {len(tentative_features)}\n\n")
-            
+            f.write(
+                f"\nTotal tentative features: {len(tentative_features)}\n\n")
+
             f.write("Rejected Features:\n")
             for feat in rejected_features:
                 f.write(f"- {feat}\n")
             f.write(f"\nTotal rejected features: {len(rejected_features)}\n\n")
-            
+
             # Write feature rankings with importance scores
             f.write("Feature Rankings and Importance Scores:\n")
             f.write("(Rankings: lower = more important, 1 is best)\n")
             f.write("(Decision: 'Confirmed', 'Tentative', or 'Rejected')\n\n")
-            
+
             # Get feature importance scores
             ranks = pd.Series(boruta.ranking_, index=X.columns)
-            
+
             # Create decision mapping
             decision_map = {}
             for feat in X.columns:
@@ -2496,36 +2650,36 @@ def statistical_analysis(
                     decision_map[feat] = 'Tentative'
                 else:
                     decision_map[feat] = 'Rejected'
-            
+
             # Sort by ranking and write
             for feat, rank in ranks.sort_values().items():
                 f.write(f"Feature: {feat}\n")
                 f.write(f"- Ranking: {rank}\n")
                 f.write(f"- Decision: {decision_map[feat]}\n\n")
-        
+
         # First create list of columns we want to keep
         columns_to_keep = ['SYSTEM', 'BCP_CROSSING', target_name]
         if 'EEF' not in selected_features + tentative_features:
             columns_to_keep.append('EEF')
-        
+
         # Add the features and target
         columns_to_keep.extend(selected_features +
-                            tentative_features)
-        
+                               tentative_features)
+
         # Create the new DataFrame in one operation
         selected_tentative_df = df[columns_to_keep].copy()
-        
+
         # First create list of columns we want to keep
         columns_to_keep = ['SYSTEM', 'BCP_CROSSING', target_name]
         if 'EEF' not in selected_features:
             columns_to_keep.append('EEF')
-        
+
         # Add the features and target
         columns_to_keep.extend(selected_features)
-        
+
         # Create the new DataFrame in one operation
         selected_df = df[columns_to_keep].copy()
-        
+
         # Save feature lists to separate files
         pd.Series(selected_features).to_csv(
             os.path.join(output_dir, f'selected_features_{unique_sys}.csv'), index=False)
@@ -2533,13 +2687,15 @@ def statistical_analysis(
             os.path.join(output_dir, f'tentative_features_{unique_sys}.csv'), index=False)
         pd.Series(rejected_features).to_csv(
             os.path.join(output_dir, f'rejected_features_{unique_sys}.csv'), index=False)
-        
+
         # save selected and selected_tentative DataFrames to CSV
-        selected_df.to_csv(os.path.join(output_dir, f'selected_df_{unique_sys}.csv'), index=False)
-        selected_tentative_df.to_csv(os.path.join(output_dir, f'selected_tentative_df_{unique_sys}.csv'), index=False)
-        
+        selected_df.to_csv(os.path.join(
+            output_dir, f'selected_df_{unique_sys}.csv'), index=False)
+        selected_tentative_df.to_csv(os.path.join(
+            output_dir, f'selected_tentative_df_{unique_sys}.csv'), index=False)
+
         return selected_df, selected_tentative_df, boruta
-    
+
     ### END HELPER FUNCTIONS ###
 
     # First, convert the data to a pandas DataFrame
@@ -2567,17 +2723,18 @@ def statistical_analysis(
     directionality_spin = [False, True]
     alpha_list = [0.01, 0.025, 0.05, 0.1, 0.15, 0.2]
     perc_list = [100, 95, 90, 85, 80]
-    
+
     alpha_list = [0.01, 0.025, 0.05, 0.1]
     perc_list = [100, 95, 90]
-    
+
     target_col = '$\\Delta E_{{\\rm{{{TS}}}}}$'
-    
+
     for sys_whitelist in sys_whitelists:
         for use_theta_phi_crossings in directionality_spin:
             for use_spin_crossings in directionality_spin:
-                print(f"\nsys_whitelist: {sys_whitelist}, use_theta_phi_crossings: {use_theta_phi_crossings}, use_spin_crossings: {use_spin_crossings}")
-                
+                print(
+                    f"\nsys_whitelist: {sys_whitelist}, use_theta_phi_crossings: {use_theta_phi_crossings}, use_spin_crossings: {use_spin_crossings}")
+
                 df, rows = prepare_bcp_crossing_df(
                     df_full,
                     "H47-O39 distance",
@@ -2585,8 +2742,7 @@ def statistical_analysis(
                     use_spin_crossings=use_spin_crossings,
                     sys_whitelist=sys_whitelist
                 )
-                
-                
+
                 # Get list of unique SYSTEM values
                 systems = "_".join(df["SYSTEM"].unique().tolist())
                 eefs = df["EEF"].unique().tolist()
@@ -2594,12 +2750,13 @@ def statistical_analysis(
                 directionality_string = "__directionality" if use_theta_phi_crossings else ""
 
                 system_string = f"{systems}{spin_string}{directionality_string}"
-                
+
                 # save the DataFrame to CSV
                 # make dirs
                 os.makedirs(f"{output_dir}/{system_string}", exist_ok=True)
-                df.to_csv(f"{output_dir}/{system_string}/{system_string}_bcp_crossing_data.csv", index=False)
-                
+                df.to_csv(
+                    f"{output_dir}/{system_string}/{system_string}_bcp_crossing_data.csv", index=False)
+
                 print(f"system_string: {system_string}\neefs: {eefs}")
 
                 # First with all features
@@ -2607,9 +2764,10 @@ def statistical_analysis(
                     df, f"{output_dir}/{system_string}/all_features/correlation_analysis"
                 )
                 pca, pca_df = perform_pca(
-                    df, [target_col], f"{output_dir}/{system_string}/all_features/pca_analysis"
+                    df, [
+                        target_col], f"{output_dir}/{system_string}/all_features/pca_analysis"
                 )
-                
+
                 do_break = False
                 check_num_features = 7
                 if use_spin_crossings and use_spin_delta_e_r:
@@ -2617,10 +2775,11 @@ def statistical_analysis(
                 # Perform Boruta feature selection
                 for pi, perc in enumerate(perc_list):
                     for ai, alpha in enumerate(alpha_list):
-                        print(f"System: {system_string}, perc: {perc}, alpha: {alpha}")
-                        
+                        print(
+                            f"System: {system_string}, perc: {perc}, alpha: {alpha}")
+
                         boruta_string = f"perc_{perc}_alpha_{alpha}"
-                        
+
                         selected_df, selected_tentative_df, boruta = perform_boruta(
                             df, 1, f"{output_dir}/{system_string}/boruta_{boruta_string}", perc=perc, alpha=alpha
                         )
@@ -2630,17 +2789,19 @@ def statistical_analysis(
                                 selected_df, f"{output_dir}/{system_string}/boruta_{boruta_string}/selected_correlation_analysis"
                             )
                             pca, pca_df = perform_pca(
-                                selected_df, [target_col], f"{output_dir}/{system_string}/boruta_{boruta_string}/selected_pca_analysis"
+                                selected_df, [
+                                    target_col], f"{output_dir}/{system_string}/boruta_{boruta_string}/selected_pca_analysis"
                             )
-                            
+
                         if len(selected_tentative_df.columns) > len(selected_df.columns):
                             create_correlation_matrix(
                                 selected_tentative_df, f"{output_dir}/{system_string}/boruta_{boruta_string}/selected_tentative_correlation_analysis"
                             )
                             pca, pca_df = perform_pca(
-                                selected_tentative_df, [target_col], f"{output_dir}/{system_string}/boruta_{boruta_string}/selected_tentative_pca_analysis"
+                                selected_tentative_df, [
+                                    target_col], f"{output_dir}/{system_string}/boruta_{boruta_string}/selected_tentative_pca_analysis"
                             )
-                        
+
                         if len(selected_df.columns) > check_num_features:
                             do_break = True
                             break
