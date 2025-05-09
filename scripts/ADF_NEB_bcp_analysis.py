@@ -6,6 +6,7 @@ from math import sqrt, atan, floor, ceil
 import numpy as np
 from scipy.interpolate import interp1d, make_interp_spline
 import matplotlib.pyplot as plt
+import matplotlib.cm as mcm # Added for colormap access
 from datetime import datetime
 import re
 import warnings  # To warn about potential issues
@@ -50,6 +51,7 @@ ams_job_paths = [
 
 # To rerun on a previously processed file, set the restart_dill_path to the path of the dill file in the working directory of the previous run. Otherwise, set to None, False, or ''. Set the csv paths to be an empty list if you want the script to use the dill file input.
 restart_dill_paths = [
+    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/plams_workdir.003/Cys_propane_near_TS/Cys_propane_near_TS.dill',
     '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/plams_workdir.003/Cys_propane_near_TS_n01/Cys_propane_near_TS_n01.dill',
     '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/plams_workdir.003/Cys_propane_near_TS_p01/Cys_propane_near_TS_p01.dill']
 unrestricted_calculation = True
@@ -173,14 +175,20 @@ plot_y_prop_list = [
 
 # This specifies properties to include in combined plots with rows for each y property and columns for each EEF type.
 # Additionally, the suffix " d/dx" causes the dy/dx derivative to be computed and plotted.
-# (For d/dx calculations, you can use the smoothed (polynomial fit) by includeing (smoothed) after the "d/dx" in the property name.
+# Each value in the below dictionary is a list of properties to plot on the y axis, with one plot
+# made per y-property.
+# If the list contains a list (a sublist) of properties, then those properties will be
+# plotted on the same plot.
+# (For d/dx calculations, you can use the smoothed (polynomial fit) by includeing (smoothed) after the "d/dx" in the property name).
 combined_plots_y_prop_lists = {
     "Rho": ["Molecular bond energy", "Rho"],
     "Rho d/dx": ["Molecular bond energy", "Rho d/dx"],
     "Rho d/dx (smoothed)": ["Molecular bond energy", "Rho d/dx (smoothed)"],
     "Angles": ["Molecular bond energy", "Theta", "Phi"],
+    "Angles overlay": ["Molecular bond energy", ["Theta", "Phi"]],
     "Angles d/dx": ["Molecular bond energy", "Theta d/dx", "Phi d/dx"],
     "Angles d/dx (smoothed)": ["Molecular bond energy", "Theta d/dx (smoothed)", "Phi d/dx (smoothed)"],
+    "Angles overlay d/dx (smoothed)": ["Molecular bond energy", ["Theta d/dx (smoothed)", "Phi d/dx (smoothed)"]],
 }
 
 # Specify properties to be used as the x axis (independent variable) for the plots.
@@ -1048,200 +1056,314 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
         else:
             x_prop_label = x_prop
 
-        for plot_name, y_prop_list in combined_y_prop_lists.items():
+        for plot_name, y_prop_list_from_dict_val in combined_y_prop_lists.items():
             log_print(
-                f"Plotting combined plots for {plot_name} vs {x_prop} for bond CPs"
+                f"Plotting combined plots for {plot_name} vs {x_prop_label} for bond CPs"
             )
 
-            smooth_derivatives = []
-            # Expand y_prop_list to include A, B, and total variants
-            expanded_y_prop_list = []
-            for y_prop in y_prop_list:
-                smooth_derivatives.append(" (smoothed)" in y_prop)
-                if smooth_derivatives[-1]:
-                    y_prop = y_prop.replace(" (smoothed)", "")
-                if " d/dx" in y_prop:
-                    base_prop = y_prop.replace(" d/dx", "")
-                    if f"{base_prop}_A" in all_props:
-                        expanded_y_prop_list.extend(
-                            [
-                                f"{base_prop}_A d/dx",
-                                f"{base_prop}_B d/dx",
-                                f"{base_prop} d/dx",
-                            ]
-                        )
-                        smooth_derivatives.extend(
-                            [smooth_derivatives[-1], smooth_derivatives[-1]])
-                    else:
-                        expanded_y_prop_list.append(y_prop)
-                elif f"{y_prop}_A" in all_props:
-                    expanded_y_prop_list.extend(
-                        [f"{y_prop}_A", f"{y_prop}_B", y_prop])
-                    smooth_derivatives.extend(
-                        [smooth_derivatives[-1], smooth_derivatives[-1]])
-                else:
-                    expanded_y_prop_list.append(y_prop)
+            expanded_y_prop_list_final = []
+            smooth_derivatives_final = []
 
-            # Create a large figure for the combined plot
+            for y_prop_entry in y_prop_list_from_dict_val:
+                if isinstance(y_prop_entry, list):
+                    processed_group = []
+                    group_contains_smoothed_derivative = False
+                    for sub_prop_name_full in y_prop_entry:
+                        is_smooth_flag_for_sub_prop = " (smoothed)" in sub_prop_name_full
+                        sub_prop_name_cleaned = sub_prop_name_full.replace(" (smoothed)", "")
+                        processed_group.append(sub_prop_name_cleaned)
+                        if is_smooth_flag_for_sub_prop and " d/dx" in sub_prop_name_cleaned:
+                            group_contains_smoothed_derivative = True
+                    
+                    # Check if all base properties in the group have _A variants
+                    can_expand_group = True
+                    if not processed_group: # Handle empty group case
+                        can_expand_group = False
+                        
+                    for sub_prop_cleaned in processed_group:
+                        base_sub_prop = sub_prop_cleaned.replace(" d/dx", "")
+                        if f"{base_sub_prop}_A" not in all_props:
+                            can_expand_group = False
+                            break
+                    
+                    if can_expand_group:
+                        group_A = []
+                        group_B = []
+                        for sub_prop_cleaned in processed_group:
+                            is_deriv = " d/dx" in sub_prop_cleaned
+                            base_name = sub_prop_cleaned.replace(" d/dx", "")
+                            group_A.append(f"{base_name}_A{' d/dx' if is_deriv else ''}")
+                            group_B.append(f"{base_name}_B{' d/dx' if is_deriv else ''}")
+                        
+                        expanded_y_prop_list_final.extend([group_A, group_B, processed_group])
+                        smooth_derivatives_final.extend([group_contains_smoothed_derivative] * 3)
+                    else:
+                        expanded_y_prop_list_final.append(processed_group)
+                        smooth_derivatives_final.append(group_contains_smoothed_derivative)
+                else: # y_prop_entry is a string
+                    is_smooth_for_this_entry = " (smoothed)" in y_prop_entry
+                    y_prop_cleaned = y_prop_entry.replace(" (smoothed)", "")
+
+                    base_prop_for_ab_check = y_prop_cleaned.replace(" d/dx", "")
+                    can_expand_single_prop = f"{base_prop_for_ab_check}_A" in all_props
+
+                    if can_expand_single_prop:
+                        is_single_deriv = " d/dx" in y_prop_cleaned
+                        expanded_y_prop_list_final.extend([
+                            f"{base_prop_for_ab_check}_A{' d/dx' if is_single_deriv else ''}",
+                            f"{base_prop_for_ab_check}_B{' d/dx' if is_single_deriv else ''}",
+                            y_prop_cleaned, # The original (total) or cleaned name
+                        ])
+                        smooth_derivatives_final.extend([is_smooth_for_this_entry] * 3)
+                    else:
+                        expanded_y_prop_list_final.append(y_prop_cleaned)
+                        smooth_derivatives_final.append(is_smooth_for_this_entry)
+            
+            current_expanded_y_prop_list = expanded_y_prop_list_final
+            current_smooth_derivatives = smooth_derivatives_final
+
+            if not current_expanded_y_prop_list:
+                log_print(f"No properties to plot for {plot_name} vs {x_prop_label}. Skipping.")
+                continue
+
             fig, axs = plt.subplots(
-                len(expanded_y_prop_list),
-                (num_eef if num_eef > 1 else 0) + 1,
-                figsize=(1+7*(num_eef+1), 5 * len(expanded_y_prop_list)),
+                len(current_expanded_y_prop_list),
+                (num_eef if num_eef > 0 else 0) + 1, # num_eef can be 0 if has_eef is false or eef_types is [""]
+                figsize=(1 + 7 * ((num_eef if num_eef > 0 else 0) + 1), 5 * len(current_expanded_y_prop_list)),
+                squeeze=False # Always return 2D array for axs
             )
             fig.suptitle(
                 f"{job_name}: Combined plots for {x_prop_label} ({plot_name})",
                 fontsize=16,
-                y=1.02,
+                y=1.00, # Adjusted y to prevent overlap with tight_layout
             )
+            
+            # Define colors for BCPs and markers for properties within a group
+            if unique_bcp_atoms: # Ensure there are BCPs to map colors to
+                if len(unique_bcp_atoms) <= 10:
+                    bcp_color_map = {bcp: mcm.get_cmap('tab10')(i) for i, bcp in enumerate(unique_bcp_atoms)}
+                elif len(unique_bcp_atoms) <= 20:
+                    bcp_color_map = {bcp: mcm.get_cmap('tab20')(i) for i, bcp in enumerate(unique_bcp_atoms)}
+                else:
+                    bcp_color_map = {bcp: mcm.get_cmap('viridis')(i / (len(unique_bcp_atoms)-1) if len(unique_bcp_atoms)>1 else 0.5) for i, bcp in enumerate(unique_bcp_atoms)}
+            else:
+                bcp_color_map = {}
 
-            for i, y_prop in enumerate(expanded_y_prop_list):
-                if x_prop in y_prop or y_prop in x_prop:
-                    continue
 
-                is_derivative = " d/dx" in y_prop
-                base_prop = y_prop.replace(
-                    " d/dx", "") if is_derivative else y_prop
+            property_markers = ['o', 's', '^', 'P', 'X', 'D', '*', 'v', '<', '>']
+            property_line_styles = ['-', '--', '-.', ':']
 
-                for j, eef in enumerate(eef_types):
-                    if num_eef > 1:
-                        ax = axs[i, j] if len(
-                            expanded_y_prop_list) > 1 else axs[j]
-                    else:
-                        ax = axs[i] if len(expanded_y_prop_list) > 1 else axs
-                    ax.set_title(
-                        f"{y_prop}{eef} vs {x_prop_label}", fontsize=9)
-                    ax.set_xlabel(x_prop_label)
-                    ax.set_ylabel(y_prop)
-                    if reverse_x_axis[xi]:
-                        print(
-                            f"Reversing x-axis for {x_prop_label=} and {y_prop=}")
-                        ax.invert_xaxis()
+            for i, y_prop_group in enumerate(current_expanded_y_prop_list):
+                # Skip plotting if x_prop is part of y_prop_group (avoid plotting prop vs itself)
+                if isinstance(y_prop_group, str):
+                    if x_prop in y_prop_group or y_prop_group in x_prop:
+                        for col_ax in range(axs.shape[1]): axs[i, col_ax].set_visible(False)
+                        continue
+                elif isinstance(y_prop_group, list):
+                    if any(x_prop in item or item in x_prop for item in y_prop_group):
+                        for col_ax in range(axs.shape[1]): axs[i, col_ax].set_visible(False)
+                        continue
+                
+                row_y_label = ""
+                if isinstance(y_prop_group, str):
+                    row_y_label = y_prop_group
+                elif isinstance(y_prop_group, list):
+                    common_suffix = ""
+                    is_all_deriv = all(" d/dx" in prop for prop in y_prop_group)
+                    temp_props_for_label = []
+                    for prop in y_prop_group:
+                        name_part = prop.replace(" d/dx", "") if is_all_deriv else prop
+                        # Further simplify for legend e.g. Rho_A -> Rho (A)
+                        if "_A" in name_part: name_part = name_part.replace("_A", " (A)")
+                        if "_B" in name_part: name_part = name_part.replace("_B", " (B)")
+                        temp_props_for_label.append(name_part)
+                    
+                    row_y_label = ", ".join(temp_props_for_label)
+                    if is_all_deriv: row_y_label += " d/dx"
 
-                    for bcp, bcp_props in bcp_prop_dict.items():
-                        x_values = bcp_props.get(f"{x_prop}", None)
-                        y_values = bcp_props.get(f"{base_prop}{eef}", None)
-                        # print(f"Data lengths for {bcp}: x={len(x_values)}, y={len(y_values)}")
-                        if x_values and y_values:
-                            if len(x_values) != len(y_values):
-                                if len(x_values) == num_eef * len(y_values):
-                                    x_values = x_values[: len(y_values)]
-                                else:
-                                    print(
-                                        f"Warning: Unexpected length mismatch for {bcp}. Skipping this plot."
-                                    )
-                                    continue
-                            x_values, y_values = zip(
-                                *sorted(zip(x_values, y_values)))
 
-                            atom_pair_tuple = tuple(
-                                map(int, re.findall(r"[a-zA-Z]{1,2}(\d+)-[a-zA-Z]{1,2}(\d+)", bcp)[0]))
-                            if len(atom_pairs_dict[atom_pair_tuple]) > 0:
-                                bcp_label = f"{bcp} ({atom_pairs_dict[atom_pair_tuple]})"
-                            else:
-                                bcp_label = bcp
-
-                            if is_derivative:
-
-                                x_vals, y_vals, order = compute_derivative(x_values, y_values, method=(
-                                    "polynomial" if smooth_derivatives[i] else "basic"))
-                                
-                                if reverse_x_axis[xi]:
-                                    # negate y values
-                                    y_vals = [-y for y in y_vals]
-                                
-                                if order is not None:
-                                    bcp_label += f"\n(order {order})"
-                                ax.plot(
-                                    x_vals[1:-1],
-                                    y_vals[1:-1],
-                                    "-" if smooth_derivatives else "-o",
-                                    label=bcp_label,
-                                    markersize=2,
-                                )
-                            else:
-                                ax.plot(
-                                    x_values, y_values, "-o", label=bcp_label, markersize=2
-                                )
-                    ax.legend(loc="upper left",
-                              bbox_to_anchor=(1, 1), fontsize=7)
-                    ax.grid(True)
-
-                # Add the "All EEF" plot in the fourth column
-                if has_eef and num_eef > 1:
-                    ax = (
-                        axs[i, num_eef]
-                        if len(expanded_y_prop_list) > 1
-                        else axs[num_eef]
-                    )
-                    ax.set_title(
-                        f"{y_prop} vs {x_prop_label} (All EEF)", fontsize=9)
-                    ax.set_xlabel(x_prop_label)
-                    ax.set_ylabel(y_prop)
+                for j_col, eef_suffix_for_plot in enumerate(eef_types if num_eef > 0 else [""]): # Loop for EEF columns
+                    current_ax = axs[i, j_col]
+                    
+                    title_prop_str = row_y_label
+                    current_ax.set_title(f"{title_prop_str}{eef_suffix_for_plot} vs {x_prop_label}", fontsize=9)
+                    current_ax.set_xlabel(x_prop_label)
+                    current_ax.set_ylabel(row_y_label)
 
                     if reverse_x_axis[xi]:
-                        print(
-                            f"Reversing x-axis for {x_prop_label=} and {y_prop=}")
-                        ax.invert_xaxis()
+                        current_ax.invert_xaxis()
 
-                    for bcp, bcp_props in bcp_prop_dict.items():
-                        for eef in ["_origEEF", "_noEEF", "_revEEF"]:
-                            x_values = bcp_props.get(f"{x_prop}{eef}", None)
-                            y_values = bcp_props.get(f"{base_prop}{eef}", None)
+                    props_for_this_ax = y_prop_group if isinstance(y_prop_group, list) else [y_prop_group]
+                    
+                    for bcp, bcp_data_for_bcp in bcp_prop_dict.items():
+                        
+                        for prop_idx, actual_y_prop in enumerate(props_for_this_ax):
+                            is_derivative = " d/dx" in actual_y_prop
+                            base_actual_prop = actual_y_prop.replace(" d/dx", "") if is_derivative else actual_y_prop
+
+                            # X values: try EEF-specific first, then universal for that x_prop
+                            x_values = bcp_data_for_bcp.get(f"{x_prop}{eef_suffix_for_plot}", bcp_data_for_bcp.get(x_prop))
+                            y_values = bcp_data_for_bcp.get(f"{base_actual_prop}{eef_suffix_for_plot}")
+
                             if x_values and y_values:
                                 if len(x_values) != len(y_values):
-                                    if len(x_values) == num_eef * len(y_values):
-                                        x_values = x_values[: len(y_values)]
-                                    else:
-                                        print(
-                                            f"Warning: Unexpected length mismatch for {bcp}. Skipping this plot."
-                                        )
-                                        continue
-                                x_values, y_values = zip(
-                                    *sorted(zip(x_values, y_values))
-                                )
+                                    print(f"Warning: Length mismatch for BCP {bcp}, Y-prop {actual_y_prop}{eef_suffix_for_plot} (len {len(y_values)}) vs X-prop {x_prop} (len {len(x_values)}). Skipping.")
+                                    continue
+                                if not x_values: # Skip if empty after filtering
+                                    continue
 
-                                bcp_label = f"{bcp}{eef}"
+                                x_values_sorted, y_values_sorted = zip(*sorted(zip(x_values, y_values)))
+
+                                atom_pair_match = re.search(r"([a-zA-Z]{1,2}\d+)-([a-zA-Z]{1,2}\d+)", bcp)
+                                bcp_display_name = bcp
+                                if atom_pair_match:
+                                    try:
+                                        atom_nums_in_bcp = tuple(map(int, re.findall(r'\d+', atom_pair_match.group(0))))
+                                        # Ensure correct order for dict lookup if necessary, or just use bcp string
+                                        # For atom_pairs_dict, we need the numbers.
+                                        # The keys in atom_pairs_dict are tuples of integers.
+                                        # We need to parse the numbers from the bcp string like "C1-O2"
+                                        bcp_atom_num_tuple = []
+                                        for atom_label_part in bcp.split('-'):
+                                            num_match_bcp = re.search(r'\d+', atom_label_part)
+                                            if num_match_bcp: bcp_atom_num_tuple.append(int(num_match_bcp.group(0)))
+                                        
+                                        bcp_atom_num_tuple = tuple(bcp_atom_num_tuple)
+                                        desc = atom_pairs_dict.get(bcp_atom_num_tuple, atom_pairs_dict.get(tuple(reversed(bcp_atom_num_tuple)), ""))
+                                        if desc: bcp_display_name = f"{bcp} ({desc})"
+                                    except: # Parsing failed
+                                        pass
+
+
+                                legend_label = bcp_display_name
+                                current_marker = 'o' # Default marker'
+                                current_line_style = "-"
+                                is_prop_group = False
+                                if isinstance(y_prop_group, list) and len(y_prop_group) > 1:
+                                    is_prop_group = True
+                                    prop_legend_name = actual_y_prop.replace(" d/dx", " deriv")
+                                    if "_A" in prop_legend_name: prop_legend_name = prop_legend_name.replace("_A", " (A)")
+                                    if "_B" in prop_legend_name: prop_legend_name = prop_legend_name.replace("_B", " (B)")
+                                    legend_label += f" ({prop_legend_name})"
+                                    current_marker = property_markers[prop_idx % len(property_markers)]
+                                    current_line_style = property_line_styles[prop_idx % len(property_line_styles)]
+
+                                current_bcp_color = bcp_color_map.get(bcp, 'k') # Default to black if bcp not in map
+                                
 
                                 if is_derivative:
-                                    x_vals, y_vals, order = compute_derivative(
-                                        x_values, y_values, method=(
-                                            "polynomial" if smooth_derivatives[i] else "basic")
-                                    )
-                                    if reverse_x_axis[xi]:
-                                        # negate y values
-                                        y_vals = [-y for y in y_vals]
+                                    x_deriv, y_deriv, order = compute_derivative(x_values_sorted, y_values_sorted, method=("polynomial" if current_smooth_derivatives[i] else "basic"))
+                                    if x_deriv is None or y_deriv is None or not list(x_deriv): continue
+
+                                    if reverse_x_axis[xi]: y_deriv = [-y_val for y_val in y_deriv]
+                                    if order is not None: legend_label += f" (ord {order})"
                                     
-                                    if order is not None:
-                                        bcp_label += f" (order {order})"
-                                    ax.plot(
-                                        x_vals[1:-1],
-                                        y_vals[1:-1],
-                                        f"{line_styles[eef]}o",
-                                        label=bcp_label,
-                                        markersize=0,
+                                    current_ax.plot(
+                                        x_deriv[1:-1], y_deriv[1:-1],
+                                        linestyle=current_line_style,
+                                        marker=current_marker if not current_smooth_derivatives[i] and not is_prop_group else None,
+                                        color=current_bcp_color, label=legend_label, markersize=3
                                     )
                                 else:
-                                    ax.plot(
-                                        x_values,
-                                        y_values,
-                                        f"{line_styles[eef]}o",
-                                        label=f"{bcp}{eef}",
-                                        markersize=0,
+                                    current_ax.plot(
+                                        x_values_sorted, y_values_sorted,
+                                        linestyle=current_line_style, marker=current_marker if not is_prop_group else None,
+                                        color=current_bcp_color, label=legend_label, markersize=3
                                     )
+                    current_ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), fontsize=7)
+                    current_ax.grid(True)
 
-                    ax.legend(loc="upper left",
-                              bbox_to_anchor=(1, 1), fontsize=7)
-                    ax.grid(True)
+                # "All EEF" plot column
+                if has_eef and num_eef > 0 : # Only if there are actual EEF types
+                    ax_all_eef = axs[i, num_eef if num_eef > 0 else 0] # num_eef is count, so index is num_eef
+                    
+                    title_prop_str_all_eef = row_y_label
+                    ax_all_eef.set_title(f"{title_prop_str_all_eef} vs {x_prop_label} (All EEF)", fontsize=9)
+                    ax_all_eef.set_xlabel(x_prop_label)
+                    ax_all_eef.set_ylabel(title_prop_str_all_eef)
 
-            plt.tight_layout()
+                    if reverse_x_axis[xi]: ax_all_eef.invert_xaxis()
+
+                    props_for_this_ax_all_eef = y_prop_group if isinstance(y_prop_group, list) else [y_prop_group]
+                    
+                    for bcp, bcp_data_for_bcp_all_eef in bcp_prop_dict.items():
+
+                        for prop_idx_all_eef, actual_y_prop_all_eef in enumerate(props_for_this_ax_all_eef):
+                            is_derivative_all_eef = " d/dx" in actual_y_prop_all_eef
+                            base_actual_prop_all_eef = actual_y_prop_all_eef.replace(" d/dx", "") if is_derivative_all_eef else actual_y_prop_all_eef
+
+                            current_bcp_color = bcp_color_map.get(bcp, 'k')
+                            current_prop_marker_all_eef = 'o'
+                            if isinstance(y_prop_group, list) and len(y_prop_group) > 1:
+                                current_prop_marker_all_eef = property_markers[prop_idx_all_eef % len(property_markers)]
+
+                            for eef_plot_suffix in eef_types: # Iterate through EEF types for lines
+                                x_values_all_eef = bcp_data_for_bcp_all_eef.get(f"{x_prop}{eef_plot_suffix}", bcp_data_for_bcp_all_eef.get(x_prop))
+                                y_values_all_eef = bcp_data_for_bcp_all_eef.get(f"{base_actual_prop_all_eef}{eef_plot_suffix}")
+
+                                if x_values_all_eef and y_values_all_eef:
+                                    if len(x_values_all_eef) != len(y_values_all_eef):
+                                        print(f"Warning: Length mismatch for BCP {bcp}{eef_plot_suffix} in All EEF plot. Y-prop {actual_y_prop_all_eef} (len {len(y_values_all_eef)}) vs X-prop {x_prop} (len {len(x_values_all_eef)}). Skipping.")
+                                        continue
+                                    if not x_values_all_eef: continue
+                                    
+                                    x_v_sorted_all_eef, y_v_sorted_all_eef = zip(*sorted(zip(x_values_all_eef, y_values_all_eef)))
+                                    
+                                    bcp_display_name_all_eef = bcp
+                                    # Simplified BCP name for All EEF plot to reduce legend clutter
+                                    # Or use the full name if preferred.
+                                    # For consistency, using the same logic as individual EEF plots:
+                                    atom_pair_match_all_eef = re.search(r"([a-zA-Z]{1,2}\d+)-([a-zA-Z]{1,2}\d+)", bcp)
+                                    if atom_pair_match_all_eef:
+                                        try:
+                                            bcp_atom_num_tuple_all_eef = []
+                                            for atom_label_part in bcp.split('-'):
+                                                num_match_bcp_all_eef = re.search(r'\d+', atom_label_part)
+                                                if num_match_bcp_all_eef: bcp_atom_num_tuple_all_eef.append(int(num_match_bcp_all_eef.group(0)))
+                                            bcp_atom_num_tuple_all_eef = tuple(bcp_atom_num_tuple_all_eef)
+                                            desc_all_eef = atom_pairs_dict.get(bcp_atom_num_tuple_all_eef, atom_pairs_dict.get(tuple(reversed(bcp_atom_num_tuple_all_eef)), ""))
+                                            if desc_all_eef: bcp_display_name_all_eef = f"{bcp} ({desc_all_eef})"
+                                        except: pass
+
+                                    legend_label_all_eef = f"{bcp_display_name_all_eef}{eef_plot_suffix}"
+                                    if isinstance(y_prop_group, list) and len(y_prop_group) > 1:
+                                        prop_legend_name_all_eef = actual_y_prop_all_eef.replace(" d/dx", " deriv")
+                                        if "_A" in prop_legend_name_all_eef: prop_legend_name_all_eef = prop_legend_name_all_eef.replace("_A", " (A)")
+                                        if "_B" in prop_legend_name_all_eef: prop_legend_name_all_eef = prop_legend_name_all_eef.replace("_B", " (B)")
+                                        legend_label_all_eef += f" ({prop_legend_name_all_eef})"
+                                    
+                                    current_line_style = line_styles.get(eef_plot_suffix, "-")
+
+                                    if is_derivative_all_eef:
+                                        x_d_all_eef, y_d_all_eef, order_all_eef = compute_derivative(x_v_sorted_all_eef, y_v_sorted_all_eef, method=("polynomial" if current_smooth_derivatives[i] else "basic"))
+                                        if x_d_all_eef is None or y_d_all_eef is None or not list(x_d_all_eef): continue
+                                        if reverse_x_axis[xi]: y_d_all_eef = [-y_val for y_val in y_d_all_eef]
+                                        if order_all_eef is not None: legend_label_all_eef += f" (ord {order_all_eef})"
+                                        
+                                        ax_all_eef.plot(
+                                            x_d_all_eef[1:-1], y_d_all_eef[1:-1],
+                                            linestyle=current_line_style,
+                                            marker=current_prop_marker_all_eef if not current_smooth_derivatives[i] else None,
+                                            color=current_bcp_color, label=legend_label_all_eef, markersize=2
+                                        )
+                                    else:
+                                        ax_all_eef.plot(
+                                            x_v_sorted_all_eef, y_v_sorted_all_eef,
+                                            linestyle=current_line_style, marker=current_prop_marker_all_eef,
+                                            color=current_bcp_color, label=legend_label_all_eef, markersize=2
+                                        )
+                    ax_all_eef.legend(loc="upper left", bbox_to_anchor=(1.02, 1), fontsize=7)
+                    ax_all_eef.grid(True)
+
+            plt.tight_layout(rect=[0, 0, 1, 0.98]) # Adjust rect to make space for suptitle if y was lowered
             # Determine top padding based on number of rows; the more rows, the less padding
-            top = min(0.995, 0.9 + 0.02 * len(expanded_y_prop_list))
-            plt.subplots_adjust(top=top)  # Add more padding at the top
-            f_base = f"{job_name}combined_{x_prop}_{plot_name}.png".replace(
-                "/", "-")
-            plt.savefig(os.path.join(out_dir, f_base),
-                        dpi=300, bbox_inches="tight")
-            plt.close()
+            # top_padding = min(0.995, 0.9 + 0.02 * len(current_expanded_y_prop_list)) # Original
+            # plt.subplots_adjust(top=top_padding, hspace=0.4) # Added hspace
+            # tight_layout often handles this better. If suptitle overlaps, adjust its y or use fig.subplots_adjust.
+            
+            f_base = f"{job_name}combined_{x_prop.replace(' ', '_')}_{plot_name.replace(' ', '_')}.png".replace("/", "-")
+            plt.savefig(os.path.join(out_dir, f_base), dpi=300, bbox_inches="tight")
+            plt.close(fig) # Close the figure explicitly
 
     return
 
