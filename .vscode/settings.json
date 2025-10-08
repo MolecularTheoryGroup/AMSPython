@@ -2,5 +2,14 @@
     "wolf.disableHotModeWarning": true,
     "editor.tabSize": 4,
     "editor.detectIndentation": true,
-    "python.defaultInterpreterPath": "/usr/local/bin/python3"
+    "python.defaultInterpreterPath": "/usr/local/bin/python3",
+    "python.testing.unittestArgs": [
+        "-v",
+        "-s",
+        ".",
+        "-p",
+        "*test.py"
+    ],
+    "python.testing.pytestEnabled": false,
+    "python.testing.unittestEnabled": true
 }

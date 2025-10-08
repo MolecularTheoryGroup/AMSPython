@@ -41,23 +41,52 @@ import warnings  # To warn about potential issues
 
 # Define the path to the AMS job file (`path/to/job.ams`), or if you don't have an ams file, use
 # the path to the ams.rkf result file. Set the dill and csv paths to be empty in order to have the script use the AMS job file input.
-ams_job_paths = [
-    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/No_Field/Cys_near_TS_NEB_NF/Cys_propane_near_TS.ams']
+# ams_job_paths = [
+#     '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/his/His_propane_near_TS.ams']
 # ams_job_paths = ['/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Field_n01/Cys_near_TS_NEB_n01/Cys_propane_near_TS_n01.ams',
 #                 '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Field_p01/Cys_near_TS_NEB_p01/Cys_propane_near_TS_p01.ams']
 # ams_job_paths = ['/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/No_Field/Full_reaction/Cys_propane_NEB_NF.ams',
 #                 '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Field_p01/Full_reaction/Cys_propane_NEB_p01.ams',
 #                 '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Field_n01/full_reaction/Cys_propane_NEB_n01.ams']
 
+# ams_job_paths = ['/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/No_Field/Full_reaction/Cys_propane_NEB_NF.ams',
+#                 '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Field_p01/Full_reaction/Cys_propane_NEB_p01.ams',
+#                 '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Field_n01/full_reaction/Cys_propane_NEB_n01.ams']
+
+ams_job_paths = [
+    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/v2/cys/n01/Cys_propane_NEB_n01.ams',
+    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/v2/cys/p01/Cys_propane_NEB_p01.ams'
+]
+
 # To rerun on a previously processed file, set the restart_dill_path to the path of the dill file in the working directory of the previous run. Otherwise, set to None, False, or ''. Set the csv paths to be an empty list if you want the script to use the dill file input.
+# restart_dill_paths = [
+#     '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Near_TS_plams_workdir.003/Cys_propane_near_TS/Cys_propane_near_TS.dill',
+#     '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Near_TS_plams_workdir.003/Cys_propane_near_TS_n01/Cys_propane_near_TS_n01.dill',
+#     '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Near_TS_plams_workdir.003/Cys_propane_near_TS_p01/Cys_propane_near_TS_p01.dill'
+# ]
+# restart_dill_paths = [
+#     '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Full_reaction_plams_workdir.004/Cys_propane_NEB_NF/Cys_propane_NEB_NF.dill',
+#     '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Full_reaction_plams_workdir.004/Cys_propane_NEB_p01/Cys_propane_NEB_p01.dill',
+#     '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Full_reaction_plams_workdir.004/Cys_propane_NEB_n01/Cys_propane_NEB_n01.dill'
+# ]
+# restart_dill_paths = [
+#     '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/his/plams_workdir.002/His_propane_near_TS/His_propane_near_TS.dill',
+# ]
 restart_dill_paths = [
-    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/plams_workdir.003/Cys_propane_near_TS/Cys_propane_near_TS.dill',
-    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/plams_workdir.003/Cys_propane_near_TS_n01/Cys_propane_near_TS_n01.dill',
-    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/plams_workdir.003/Cys_propane_near_TS_p01/Cys_propane_near_TS_p01.dill']
+    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/v2/cys_his_tyr_nf_workdir/Cys_propane_NEB_NF/Cys_propane_NEB_NF.dill',
+    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/v2/cys_his_tyr_nf_workdir/His_propane_NEB_NF/His_propane_NEB_NF.dill',
+    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/v2/cys_his_tyr_nf_workdir/Tyr_propane_NEB_NF/Tyr_propane_NEB_NF.dill',
+    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/v2/cys_plus_minus_workdir.002/Cys_propane_NEB_n01/Cys_propane_NEB_n01.dill',
+    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/v2/cys_plus_minus_workdir.002/Cys_propane_NEB_p01/Cys_propane_NEB_p01.dill',
+]
 unrestricted_calculation = True
 
 # Define paths to previously created cp data CSV files in order to do statistical analysis.
-csv_file_paths = []
+csv_file_paths = [
+    # '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Full_reaction_plams_workdir.004/Cys_propane_NEB_n01/Cys_propane_NEB_n01_cp_info.csv',
+    # '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Full_reaction_plams_workdir.004/Cys_propane_NEB_p01/Cys_propane_NEB_p01_cp_info.csv',
+    # '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Full_reaction_plams_workdir.004/Cys_propane_NEB_NF/Cys_propane_NEB_NF_cp_info.csv'
+]
 
 # You can control the starting and ending NEB image number to include in the analysis here.
 # 0 means the first image in the NEB, 1 means the second image, etc.
@@ -67,7 +96,7 @@ end_image = -1  # -1 means the last image in the NEB
 # Define atom pairs (pairs of atom numbers with associated descriptions) for which to extract bond critical point information.
 # One list for each input file defined above
 atom_pairs_list = (  # one-based indices, same as shown in AMSView
-    # {
+    # { # Chorismate Mutase
     #     (9, 12): "Breaking bond",  # breaking C-O bond
     #     (12, 13): "- → =", # breaking C-O O's remaining (single -> double) C-O bond
     #     (7, 9): "Ring to OH - → ≃", # breaking C-O C's C-C bond towards OH
@@ -78,40 +107,90 @@ atom_pairs_list = (  # one-based indices, same as shown in AMSView
     #     (1, 3): "Ring ≃ → -", # forming C-C ring C-C bond with (aromatic -> single) ring C
     #     (1, 11): "Ring to OH ≃ → -", # forming C-C ring C-C bond with (aromatic -> single) other ring C
     # },
-    {
-        (40, 47): "Breaking bond",  # CH
-        (47, 39): "Forming bond",  # OH
-        (1, 39): "",  # FeO
-        (1, 53): "Fe-Ligand",  # Fe-amino acid Cys
+    # { # CP450 Heme His
+    #     (40, 47): "Breaking bond",  # CH
+    #     (47, 39): "Forming bond",  # OH
+    #     (1, 39): "",  # FeO
+    #     (1, 55): "Fe-Ligand",  # Fe-amino acid His
+    #     (1, 2): "",  # FeN
+    #     (1, 3): "",  # FeN
+    #     (1, 4): "",  # FeN
+    #     (1, 5): "",  # FeN
+    # },
+    # { # CP450 Heme Cys
+    #     (40, 47): "Breaking bond",  # CH
+    #     (47, 39): "Forming bond",  # OH
+    #     (1, 39): "",  # FeO
+    #     (1, 53): "Fe-Ligand",  # Fe-amino acid Cys
+    #     (1, 2): "",  # FeN
+    #     (1, 3): "",  # FeN
+    #     (1, 4): "",  # FeN
+    #     (1, 5): "",  # FeN
+    # },
+    { # CP450 Heme Cys NF v2 
+        (44, 46): "Breaking bond",  # CH
+        (46, 38): "Forming bond",  # OH
+        (1, 38): "",  # FeO
+        (1, 43): "Fe-Ligand",  # Fe-amino acid Cys
         (1, 2): "",  # FeN
         (1, 3): "",  # FeN
         (1, 4): "",  # FeN
         (1, 5): "",  # FeN
     },
-    {
-        (40, 47): "Breaking bond",  # CH
-        (47, 39): "Forming bond",  # OH
-        (1, 39): "",  # FeO
-        (1, 53): "Fe-Ligand",  # Fe-amino acid Cys
+    { # CP450 Heme His NF v2 
+        (78, 77): "Breaking bond",  # CH
+        (77, 38): "Forming bond",  # OH
+        (1, 38): "",  # FeO
+        (1, 44): "Fe-Ligand",  # Fe-amino acid Cys
         (1, 2): "",  # FeN
         (1, 3): "",  # FeN
         (1, 4): "",  # FeN
         (1, 5): "",  # FeN
     },
-    {
-        (40, 47): "Breaking bond",  # CH
-        (47, 39): "Forming bond",  # OH
-        (1, 39): "",  # FeO
-        (1, 53): "Fe-Ligand",  # Fe-amino acid Cys
+    { # CP450 Heme Tyr NF v2 
+        (55, 54): "Breaking bond",  # CH
+        (54, 38): "Forming bond",  # OH
+        (1, 38): "",  # FeO
+        (1, 40): "Fe-Ligand",  # Fe-amino acid Cys
         (1, 2): "",  # FeN
         (1, 3): "",  # FeN
         (1, 4): "",  # FeN
         (1, 5): "",  # FeN
     },
+    { # CP450 Heme Cys n01 v2 
+        (45, 44): "Breaking bond",  # CH
+        (44, 38): "Forming bond",  # OH
+        (1, 38): "",  # FeO
+        (1, 43): "Fe-Ligand",  # Fe-amino acid Cys
+        (1, 2): "",  # FeN
+        (1, 3): "",  # FeN
+        (1, 4): "",  # FeN
+        (1, 5): "",  # FeN
+    },
+    { # CP450 Heme Cys p01 v2 
+        (45, 44): "Breaking bond",  # CH
+        (44, 38): "Forming bond",  # OH
+        (1, 38): "",  # FeO
+        (1, 43): "Fe-Ligand",  # Fe-amino acid Cys
+        (1, 2): "",  # FeN
+        (1, 3): "",  # FeN
+        (1, 4): "",  # FeN
+        (1, 5): "",  # FeN
+    },
+    # { # CP450 Heme Tyr
+    #     (40, 47): "Breaking bond",  # CH
+    #     (47, 39): "Forming bond",  # OH
+    #     (1, 39): "",  # FeO
+    #     (1, 50): "Fe-Ligand",  # Fe-amino acid Tyr
+    #     (1, 2): "",  # FeN
+    #     (1, 3): "",  # FeN
+    #     (1, 4): "",  # FeN
+    #     (1, 5): "",  # FeN
+    # },
 )
 
 # Index of atom pair for which to print the bond distance of each image to be run. (or set to None to not print any distances)
-atom_pair_for_bond_distance_printout = (40, 47)
+atom_pair_for_bond_distance_printout = None #(46, 38)
 
 ##### densf full grid settings #####
 # This script can also be used to create full 3d grids for each step along the NEB.
@@ -134,7 +213,7 @@ densf_bb_spacing = (
 # and the opposite and no-field case will be included.
 # THIS OVERRIDES THE EEF USED IN THE NEB CALCULATION.
 # Uncomment the following line to specify your own electric field, or leave it as None to use the NEB eef if present.
-user_eef = None  # (0.0, 0.0, 0.01)
+user_eef = (0.0, 0.0, 0.01)
 # Need to convert electric field magnitude units. In the NEB rkf file, they're Ha/(e bohr), but in the
 # new jobs they need to be V/Angstrom. The conversion factor is 51.4220861908324.
 eef_conversion_factor = 51.4220861908324
@@ -147,7 +226,7 @@ eef_pairs = [("origEEF", eef_conversion_factor)]
 # To get better resultion around the transition state, we'll identify the TS image (highest energy image)
 # and create additional images between it and the adjacent images, using a linear interpolation of the
 # coordinates of the adjacent images. Here, you specify how many extra images to add on *each* side of the TS image.
-num_extra_images = 16
+num_extra_images = 3
 # This then determines how many images to the left/right of the TS image to create. `num_extra_images` images will be created between each adjacent pair of images.
 # So "1" will result in `num_extra_images` images being added only between the TS image and its adjacent images,
 # while "3" will add `num_extra_images` between each image pair starting 3 images before the TS, etc.
@@ -187,6 +266,7 @@ combined_plots_y_prop_lists = {
     "Angles": ["Molecular bond energy", "Theta", "Phi"],
     "Angles overlay": ["Molecular bond energy", ["Theta", "Phi"]],
     "Angles d/dx": ["Molecular bond energy", "Theta d/dx", "Phi d/dx"],
+    "Angles overlay d/dx": ["Molecular bond energy", ["Theta d/dx", "Phi d/dx"]],
     "Angles d/dx (smoothed)": ["Molecular bond energy", "Theta d/dx (smoothed)", "Phi d/dx (smoothed)"],
     "Angles overlay d/dx (smoothed)": ["Molecular bond energy", ["Theta d/dx (smoothed)", "Phi d/dx (smoothed)"]],
 }
@@ -195,8 +275,31 @@ combined_plots_y_prop_lists = {
 # For each x-axis property specified, a full set of plots will be generated for each y property.
 # (Add " (reverse)" to reverse the x-axis direction)
 plot_x_prop_list = [
-    "H47-O39 distance (reverse)",
+    "H46-O38 distance (reverse)",
     "NEB image",
+]
+
+plot_x_prop_lists = [
+    [
+        "H46-O38 distance (reverse)",
+        "NEB image",
+    ],
+    [
+        "H77-O38 distance (reverse)",
+        "NEB image",
+    ],
+    [
+        "H54-O38 distance (reverse)",
+        "NEB image",
+    ],
+    [
+        "H44-O38 distance (reverse)",
+        "NEB image",
+    ],
+    [
+        "H44-O38 distance (reverse)",
+        "NEB image",
+    ],
 ]
 ##### end Plot settings #####
 
@@ -213,6 +316,46 @@ num_check_points = 15
 # the check points. If too small, the search grid may not include the true spin A/B CP locations.
 check_point_grid_extent_fraction = 0.02
 ##### end Spin density CP search settings #####
+
+# List of properties to include in reduced output CSV file
+reduced_csv_keys = [
+    r"ATOMS",
+    r"NEB image",
+    r".*distance.*",
+    r"JOB_NAME",
+    r"Molecular bond energy",
+    r"CP #",
+    r"RANK",
+    r"SIGNATURE",
+    r"^Rho(_[AB])?",
+    # "Rho_A",
+    # "Rho_B",
+    r"Theta.*",
+    # "Theta_A",
+    # "Theta_B",
+    r"Phi.*",
+    # "Phi_A",
+    # "Phi_B",
+    r"CP COORDINATES.*",
+    # "CP COORDINATES_A",
+    # "CP COORDINATES_B",
+    r"EIGENVALUES.*",
+    # "EIGENVALUES_A",
+    # "EIGENVALUES_B",
+    # "EIGENVALUES OF HESSIAN MATRIX",
+    # "EIGENVALUES OF HESSIAN MATRIX_A",
+    # "EIGENVALUES OF HESSIAN MATRIX_B",
+    r"EIGENVECTORS.*",
+    # "EIGENVECTORS_A",
+    # "EIGENVECTORS_B",
+    # "EIGENVECTORS (ORTHONORMAL) OF HESSIAN MATRIX (COLUMNS)",
+    # "EIGENVECTORS (ORTHONORMAL) OF HESSIAN MATRIX (COLUMNS)_A",
+    # "EIGENVECTORS (ORTHONORMAL) OF HESSIAN MATRIX (COLUMNS)_B"
+]
+
+reduced_csv_rename_key_map = {
+    "NEB image": "Reaction coordinate"
+}
 
 ########################################################################################
 # END OF USER SETTINGS
@@ -313,7 +456,7 @@ def compute_polynomial_derivative(
     y,
     n_fine=100,
     n_validation_factor=5,
-    min_order=2,
+    min_order=3,
     max_order=9,
     output_at='original',
     # Percentage of data range (centered) to use for validation error
@@ -469,7 +612,7 @@ def compute_polynomial_derivative(
         # print(f"  Order {order}: Max Interior Abs Error = {max_interior_error:.4g}")
 
         # Check if this is the best model so far based on max interior error
-        if max_interior_error < min_validation_max_error:
+        if max_interior_error < min_validation_max_error * 0.95:
             min_validation_max_error = max_interior_error
             best_order = order
             best_coeffs = coeffs
@@ -488,14 +631,20 @@ def compute_polynomial_derivative(
     # print(f"Selected best polynomial order: {best_order} (based on min max interior error)")
     best_poly = np.poly1d(best_coeffs)
     derivative_poly = best_poly.deriv()
+    
+    # get min and max x value (not index) based on `interior_percent`
+    x_min = np.min(x_fine)
+    x_max = np.max(x_fine)
+    interior_range = (x_min + (x_max - x_min) * (100 - interior_percent) / 2.0 / 100,
+                      x_max - (x_max - x_min) * (100 - interior_percent) / 2.0 / 100)
 
     # --- Evaluate Derivative at Chosen Points ---
     if output_at == 'original':
-        x_output = x_unique
+        x_output = np.array([v for v in x_unique if interior_range[0] <= v <= interior_range[1]])
         derivative_values = derivative_poly(x_output)
         # print(f"Evaluated derivative at {len(x_output)} original unique x points.")
     elif output_at == 'fine':
-        x_output = x_fine
+        x_output = np.array([v for v in x_fine if interior_range[0] <= v <= interior_range[1]])
         derivative_values = derivative_poly(x_output)
         # print(f"Evaluated derivative at {len(x_output)} fine resampled x points.")
     else:
@@ -508,7 +657,7 @@ def compute_polynomial_derivative(
     return x_output, derivative_values, best_order
 
 
-def compute_derivative(x, y, order=1, method="basic", num_points=100, k=3, output_at="fine"):
+def compute_derivative(x, y, order=-1, method="basic", num_points=100, k=3, output_at="fine"):
     """
     Calculate higher-order derivatives using repeated application of np.diff().
 
@@ -525,27 +674,42 @@ def compute_derivative(x, y, order=1, method="basic", num_points=100, k=3, outpu
         out = compute_bspline_derivative(x, y, num_points, k)
         return out[0], out[1], None
     elif method == "polynomial":
-        return compute_polynomial_derivative(x, y, output_at=output_at)
+        if order > 0:
+            # Use polynomial fitting for the derivative
+            return compute_polynomial_derivative(
+                x, y, n_validation_factor=5, min_order=order, max_order=order, output_at=output_at)
+        else:
+            return compute_polynomial_derivative(x, y, output_at=output_at)
+    
+    order = max(1, order)  # Ensure order is at least 1
 
-    if order < 1:
-        raise ValueError("Order must be at least 1")
+    # The following block implements the "basic" centered difference method
+    x_current = np.array(x[2:-2])  # Exclude the first and last points for centered difference
+    y_current = np.array(y[2:-2])
 
-    x_values = np.array(x)
-    y_values = np.array(y)
+    # Check if there are enough points for the requested order
+    # For a k-th order centered derivative, at least 2k+1 points are needed to produce one value.
+    if len(x_current) < 2 * order + 1:
+        warnings.warn(
+            f"For 'basic' method with order {order}, need at least {2 * order + 1} points. "
+            f"Got {len(x_current)}. Returning empty arrays."
+        )
+        return np.array([]), np.array([]), None
 
     for _ in range(order):
-        # Calculate the differences
-        dy = np.diff(y_values)
-        dx = np.diff(x_values)
+        # Centered difference formula: (y[i+1] - y[i-1]) / (x[i+1] - x[i-1])
+        # This is applied iteratively for higher-order derivatives.
+        dy = y_current[2:] - y_current[:-2]
+        dx = x_current[2:] - x_current[:-2]
 
-        # Calculate the derivative
+        # numpy.divide will issue a RuntimeWarning and return inf/nan if dx contains zeros.
         derivative = dy / dx
+        
+        # The x-coordinates for the derivative values are the central points of the intervals used.
+        x_current = x_current[1:-1] 
+        y_current = derivative
 
-        # Update x_values and y_values for the next iteration
-        x_values = (x_values[1:] + x_values[:-1]) / 2
-        y_values = derivative
-
-    return x_values, y_values, None
+    return x_current, y_current, None
 
 
 def log_print(*args, **kwargs):
@@ -656,6 +820,8 @@ def get_bcp_properties(job, atom_pairs_dict, unrestricted=False):
     num_cps = kf[("Properties", "CP number of")]
     cp_coords = kf[("Properties", "CP coordinates")]
     cp_codes = kf[("Properties", "CP code number for (Rank,Signatu")]
+    eef = kf[("Molecule", "eeEField")]
+    eef_mag = sum([v**2 for v in eef])**0.5 * float(np.sign(sum(eef)))
     # cp_coords is all the x, then all the y, then all the z. So we need to reshape it to a 2D list
     cp_coords = [
         (cp_coords[i], cp_coords[i + num_cps], cp_coords[i + 2 * num_cps])
@@ -751,6 +917,7 @@ def get_bcp_properties(job, atom_pairs_dict, unrestricted=False):
         out_cp_data[i]["JOB_NAME"] = job.name
         out_cp_data[i]["NEB image"] = image_number
         out_cp_data[i]["Molecular bond energy"] = job_energy
+        out_cp_data[i]["EEF"] = eef_mag
 
     # match cp_indices to the right element in out_cp_data using the [CP #] key
     out_cp_data_cp_inds = {}
@@ -994,7 +1161,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
     image_names = sorted(list(set([cp["JOB_NAME"] for cp in cp_data])))
     job_name = os.path.commonprefix(image_names)
     eef_strs = ["origEEF", "revEEF", "noEEF"]
-    has_eef = any([eef in str(image_names) for eef in eef_strs])
+    has_eef = [eef in str(image_names) for eef in eef_strs].count(True) > 1
 
     reverse_x_axis = [" (reverse)" in x_prop for x_prop in x_prop_list]
     x_prop_list = [
@@ -1195,7 +1362,42 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
 
                     props_for_this_ax = y_prop_group if isinstance(y_prop_group, list) else [y_prop_group]
                     
-                    for bcp, bcp_data_for_bcp in bcp_prop_dict.items():
+                    for bcp_i, (bcp, bcp_data_for_bcp) in enumerate(bcp_prop_dict.items()):
+                        
+                        # First need to pre-compute any len > 1 property groups that are derivatives.
+                        # This is to find the minimum order of derivative for the group so that
+                        # we can use the same order for all properties in the group.
+                        deriv_orders = []
+                        for prop_idx, actual_y_prop in enumerate(props_for_this_ax):
+                            deriv_orders.append(None)
+                            is_derivative = " d/dx" in actual_y_prop
+                            if not all([current_smooth_derivatives[i], is_derivative]):
+                                continue
+                            base_actual_prop = actual_y_prop.replace(" d/dx", "") if is_derivative else actual_y_prop
+
+                            # X values: try EEF-specific first, then universal for that x_prop
+                            x_values = bcp_data_for_bcp.get(f"{x_prop}{eef_suffix_for_plot}", bcp_data_for_bcp.get(x_prop))
+                            y_values = bcp_data_for_bcp.get(f"{base_actual_prop}{eef_suffix_for_plot}")
+
+                            if x_values and y_values:
+                                if len(x_values) != len(y_values):
+                                    print(f"Warning: Length mismatch for BCP {bcp}, Y-prop {actual_y_prop}{eef_suffix_for_plot} (len {len(y_values)}) vs X-prop {x_prop} (len {len(x_values)}). Skipping.")
+                                    continue
+                                if not x_values:
+                                    continue
+                                x_values_sorted, y_values_sorted = zip(*sorted(zip(x_values, y_values)))
+                                # Compute the derivative order for this property
+                                _, _, order = compute_derivative(x_values_sorted, y_values_sorted, method="polynomial")
+                                deriv_orders[-1] = order
+                        # Now find the minimum order for the group
+                        if len(deriv_orders) > 0 and any(deriv_orders):
+                            # Only compute min if there are any non-None orders
+                            # This is to avoid errors if all orders are None
+                            # or if the group is empty
+                            poly_order = min([order for order in deriv_orders if order is not None])
+                        else:
+                            poly_order = 1
+                        
                         
                         for prop_idx, actual_y_prop in enumerate(props_for_this_ax):
                             is_derivative = " d/dx" in actual_y_prop
@@ -1247,13 +1449,20 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                                     legend_label += f" ({prop_legend_name})"
                                     current_marker = property_markers[prop_idx % len(property_markers)]
                                     current_line_style = property_line_styles[prop_idx % len(property_line_styles)]
+                                else:
+                                    if is_derivative:
+                                        current_line_style = property_line_styles[bcp_i % len(property_line_styles)]
+                                    else:
+                                        current_marker = property_markers[bcp_i % len(property_markers)]
 
                                 current_bcp_color = bcp_color_map.get(bcp, 'k') # Default to black if bcp not in map
                                 
 
                                 if is_derivative:
-                                    x_deriv, y_deriv, order = compute_derivative(x_values_sorted, y_values_sorted, method=("polynomial" if current_smooth_derivatives[i] else "basic"))
+                                    x_deriv, y_deriv, order = compute_derivative(x_values_sorted, y_values_sorted, order = poly_order, method=("polynomial" if current_smooth_derivatives[i] else "basic"))
                                     if x_deriv is None or y_deriv is None or not list(x_deriv): continue
+                                    
+                                    last_order = order
 
                                     if reverse_x_axis[xi]: y_deriv = [-y_val for y_val in y_deriv]
                                     if order is not None: legend_label += f" (ord {order})"
@@ -1287,6 +1496,40 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                     props_for_this_ax_all_eef = y_prop_group if isinstance(y_prop_group, list) else [y_prop_group]
                     
                     for bcp, bcp_data_for_bcp_all_eef in bcp_prop_dict.items():
+                        
+                        # First need to pre-compute any len > 1 property groups that are derivatives.
+                        # This is to find the minimum order of derivative for the group so that
+                        # we can use the same order for all properties in the group.
+                        deriv_orders_all_eef = []
+                        for prop_idx_all_eef, actual_y_prop_all_eef in enumerate(props_for_this_ax_all_eef):
+                            deriv_orders_all_eef.append(None)
+                            is_derivative_all_eef = " d/dx" in actual_y_prop_all_eef
+                            if not all([current_smooth_derivatives[i], is_derivative_all_eef]):
+                                continue
+                            base_actual_prop_all_eef = actual_y_prop_all_eef.replace(" d/dx", "") if is_derivative_all_eef else actual_y_prop_all_eef
+
+                            # X values: try EEF-specific first, then universal for that x_prop
+                            x_values_all_eef = bcp_data_for_bcp_all_eef.get(f"{x_prop}{eef_suffix_for_plot}", bcp_data_for_bcp_all_eef.get(x_prop))
+                            y_values_all_eef = bcp_data_for_bcp_all_eef.get(f"{base_actual_prop_all_eef}{eef_suffix_for_plot}")
+
+                            if x_values_all_eef and y_values_all_eef:
+                                if len(x_values_all_eef) != len(y_values_all_eef):
+                                    print(f"Warning: Length mismatch for BCP {bcp}, Y-prop {actual_y_prop_all_eef}{eef_suffix_for_plot} (len {len(y_values_all_eef)}) vs X-prop {x_prop} (len {len(x_values_all_eef)}). Skipping.")
+                                    continue
+                                if not x_values_all_eef: continue
+                                
+                                x_v_sorted_all_eef, y_v_sorted_all_eef = zip(*sorted(zip(x_values_all_eef, y_values_all_eef)))
+                                # Compute the derivative order for this property
+                                _, _, order = compute_derivative(x_v_sorted_all_eef, y_v_sorted_all_eef, method="polynomial")
+                                deriv_orders_all_eef[-1] = order
+                        # Now find the minimum order for the group
+                        if len(deriv_orders_all_eef) > 0 and any(deriv_orders_all_eef):
+                            # Only compute min if there are any non-None orders
+                            # This is to avoid errors if all orders are None
+                            # or if the group is empty
+                            poly_order_all_eef = min([order for order in deriv_orders_all_eef if order is not None])
+                        else:
+                            poly_order_all_eef = 1
 
                         for prop_idx_all_eef, actual_y_prop_all_eef in enumerate(props_for_this_ax_all_eef):
                             is_derivative_all_eef = " d/dx" in actual_y_prop_all_eef
@@ -1331,11 +1574,12 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                                         if "_A" in prop_legend_name_all_eef: prop_legend_name_all_eef = prop_legend_name_all_eef.replace("_A", " (A)")
                                         if "_B" in prop_legend_name_all_eef: prop_legend_name_all_eef = prop_legend_name_all_eef.replace("_B", " (B)")
                                         legend_label_all_eef += f" ({prop_legend_name_all_eef})"
-                                    
+                                        
+                                    current_prop_marker_all_eef = property_markers[prop_idx_all_eef % len(property_markers)]
                                     current_line_style = line_styles.get(eef_plot_suffix, "-")
 
                                     if is_derivative_all_eef:
-                                        x_d_all_eef, y_d_all_eef, order_all_eef = compute_derivative(x_v_sorted_all_eef, y_v_sorted_all_eef, method=("polynomial" if current_smooth_derivatives[i] else "basic"))
+                                        x_d_all_eef, y_d_all_eef, order_all_eef = compute_derivative(x_v_sorted_all_eef, y_v_sorted_all_eef, order = poly_order_all_eef, method=("polynomial" if current_smooth_derivatives[i] else "basic"))
                                         if x_d_all_eef is None or y_d_all_eef is None or not list(x_d_all_eef): continue
                                         if reverse_x_axis[xi]: y_d_all_eef = [-y_val for y_val in y_d_all_eef]
                                         if order_all_eef is not None: legend_label_all_eef += f" (ord {order_all_eef})"
@@ -1463,7 +1707,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                     plt.close()
 
 
-def write_csv(cp_data, input_file_path):
+def write_csv(cp_data, input_file_path, include_keys=None, rename_key_map=None):
 
     # Determine all keys present in the data
     all_keys = set()
@@ -1497,9 +1741,10 @@ def write_csv(cp_data, input_file_path):
 
     # Define the preferred order of columns
     preferred_order = [
+        "ATOMS",
+        "NEB image",
         "JOB_NAME",
         "CP #",
-        "ATOMS",
         "RANK",
         "SIGNATURE",
         "CP COORDINATES_X",
@@ -1520,25 +1765,33 @@ def write_csv(cp_data, input_file_path):
     ]
 
     # Now add Eigenvalues and Eigenvectors
-    for h in [s for s in all_keys if "EIGENVALUES" in s]:
+    for h in [s for s in all_keys if "EIGENVALUES" in s and s not in preferred_order]:
         preferred_order.append(h)
-    for h in [s for s in all_keys if "EIGENVECTORS" in s]:
+    for h in [s for s in all_keys if "EIGENVECTORS (ORTHONORMAL) OF HESSIAN MATRIX (COLUMNS)" in s and s not in preferred_order]:
         preferred_order.append(h)
 
     # Then Hessian
-    for h in [s for s in all_keys if "HESSIAN" in s]:
+    for h in [s for s in all_keys if "HESSIAN" in s and s not in preferred_order]:
         preferred_order.append(h)
 
     # Now add the rest if not already in the preferred order
     for h in all_keys:
         if h not in preferred_order:
             preferred_order.append(h)
+            
 
     headers = preferred_order
+    if include_keys is not None:
+        headers = [h for h in headers if any(re.fullmatch(pattern, h) for pattern in include_keys)]
+    
+    # headers = sorted(list(set(headers)))
+    
+
 
     # Define the output CSV file path
     base_name = os.path.splitext(input_file_path)[0]
-    csv_file_path = f"{base_name}_cp_info.csv"
+    suffix = "_reduced" if include_keys is not None else ""
+    csv_file_path = f"{base_name}_cp_info{suffix}.csv"
 
     # Write the CSV file
     with open(csv_file_path, "w", newline="") as csvfile:
@@ -1549,24 +1802,48 @@ def write_csv(cp_data, input_file_path):
             for key, value in cp.items():
                 if isinstance(value, list):
                     if isinstance(value[0], list):  # 2D list
-                        if (
-                            "EIGENVECTORS (ORTHONORMAL) OF HESSIAN MATRIX (COLUMNS)"
-                            in key
-                        ):
+                        if "EIGENVECTORS (ORTHONORMAL) OF HESSIAN MATRIX (COLUMNS)" in key:
                             for i in range(3):
                                 for j, axis in enumerate(["X", "Y", "Z"]):
-                                    row[f"{key}_EV{i+1}_{axis}"] = value[i][j]
+                                    new_key = f"{key}_EV{i+1}_{axis}"
+                                    if include_keys is not None and not any(re.fullmatch(pattern, new_key) for pattern in include_keys):
+                                        continue
+                                    row[new_key] = value[i][j]
                         elif "HESSIAN MATRIX" in key:
                             for i, axis1 in enumerate(["X", "Y", "Z"]):
                                 for j, axis2 in enumerate(["X", "Y", "Z"]):
-                                    row[f"{key}_{axis1}{axis2}"] = value[i][j]
+                                    new_key = f"{key}_{axis1}{axis2}"
+                                    if include_keys is not None and not any(re.fullmatch(pattern, new_key) for pattern in include_keys):
+                                        continue
+                                    row[new_key] = value[i][j]
                     else:  # 1D list
                         for i, axis in enumerate(["X", "Y", "Z"]):
-                            row[f"{key}_{axis}"] = value[i]
+                            new_key = f"{key}_{axis}"
+                            if include_keys is not None and not any(re.fullmatch(pattern, new_key) for pattern in include_keys):
+                                continue
+                            row[new_key] = value[i]
                 else:
+                    if include_keys is not None and not any(re.fullmatch(pattern, key) for pattern in include_keys):
+                        continue
                     row[key] = value
             writer.writerow(row)
 
+    # Open the file and apply any header renaming if specified
+    if rename_key_map is not None and rename_key_map:
+        with open(csv_file_path, "r") as csvfile:
+            reader = csv.reader(csvfile)
+            rows = list(reader)
+
+        # Rename headers in the first row
+        headers = rows[0]
+        renamed_headers = [rename_key_map.get(h, h) for h in headers]
+        rows[0] = renamed_headers
+
+        # Write back the modified rows to the CSV file
+        with open(csv_file_path, "w", newline="") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerows(rows)
+    
     log_print(f"CSV file written to {csv_file_path}")
 
 
@@ -1589,7 +1866,7 @@ def interpolate_molecules(mol1, mol2, num_images):
     return interpolated_molecules
 
 
-def main(ams_job_path, atom_pairs):
+def main(ams_job_path, atom_pairs, x_prop_list=plot_x_prop_list):
     ########################################################################################
     # Step 1: getting basic input file information
     ########################################################################################
@@ -1820,7 +2097,7 @@ def main(ams_job_path, atom_pairs):
         atom_pairs,
         ams_job_path,
         plot_y_prop_list,
-        plot_x_prop_list,
+        x_prop_list,
         unrestricted=is_unrestricted,
     )
 
@@ -1848,6 +2125,8 @@ def process_results(jobs, atom_pairs, path, prop_list, x_prop_list, unrestricted
         total_cp_data.extend(cp_data)
 
     write_csv(total_cp_data, path)
+    extra_keys = [s.replace(" (reverse)", "") for s in x_prop_list]
+    write_csv(total_cp_data, path, include_keys=reduced_csv_keys + extra_keys, rename_key_map=reduced_csv_rename_key_map)
 
     generate_plots(
         total_cp_data,
@@ -1871,9 +2150,11 @@ def test_post_processing_single_job(job_path, atom_pairs):
     cp_data = get_bcp_properties(input_job, atom_pairs, unrestricted=True)
 
     write_csv(cp_data, job_path)
+    extra_keys = [s.replace(" (reverse)", "") for s in x_prop_list]
+    write_csv(cp_data, job_path, include_keys=reduced_csv_keys + extra_keys, rename_key_map=reduced_csv_rename_key_map)
 
 
-def test_post_processing_multiple_jobs(dill_path, atom_pairs, unrestricted=False):
+def test_post_processing_multiple_jobs(dill_path, atom_pairs, unrestricted=False, x_prop_list=plot_x_prop_list):
     # every directory in jobs_path can be loaded using AMSJob.load_external
     jobs = load(dill_path)
     process_results(
@@ -1881,7 +2162,7 @@ def test_post_processing_multiple_jobs(dill_path, atom_pairs, unrestricted=False
         atom_pairs,
         dill_path,
         plot_y_prop_list,
-        plot_x_prop_list,
+        x_prop_list,
         unrestricted=unrestricted,
     )
     return
@@ -1939,339 +2220,6 @@ def read_simple_csv(csv_path):
     return cp_data
 
 
-def prepare_bcp_crossing_df(
-    df_full,
-    rxn_coord_name,
-    use_theta_phi_crossings=False,
-    use_spin_crossings=False,
-    use_spin_delta_e_r=False,
-    sys_whitelist=[],
-    eef_whitelist=[],
-):
-    from scipy.interpolate import interp1d
-
-    ### BEGIN HELPER FUNCTIONS ###
-
-    # Step 2: Create nested dict of BCP interpolations
-    def prepare_bcp_interpolations(df_full, rxn_coord_name, system_eef_pairs):
-        # First, identify float columns that aren't the reaction coordinate
-        float_cols = df_full.select_dtypes(
-            include=[np.float64, np.float32]).columns
-        prop_cols = [col for col in float_cols]
-
-        # Initialize the outer dictionary
-        bcp_interps = {}
-
-        # For each system-EEF pair
-        for system_eef in system_eef_pairs:
-            system, eef = system_eef.split("_")
-            # Get data for this system
-            system_mask = (df_full["SYSTEM"] == system) & (
-                df_full["EEF"].astype(str) == eef
-            )
-            system_data = df_full[system_mask]
-
-            # Initialize dict for this system
-            bcp_interps[system_eef] = {}
-
-            # For each unique BCP in this system
-            for atoms in system_data["ATOMS"].unique():
-                # Get data for this BCP
-                bcp_mask = system_data["ATOMS"] == atoms
-                bcp_data = system_data[bcp_mask]
-
-                # Initialize dict for this BCP's properties
-                bcp_interps[system_eef][atoms] = {}
-
-                # Create interpolation for each property
-                for prop in prop_cols:
-                    x = bcp_data[rxn_coord_name].values
-                    y = bcp_data[prop].values
-                    # Sort x and y by x values to ensure proper interpolation
-                    sort_idx = np.argsort(x)
-                    x = x[sort_idx]
-                    y = y[sort_idx]
-                    # Create interpolation
-                    interp = interp1d(x, y, kind="linear")
-                    bcp_interps[system_eef][atoms][prop] = interp
-
-        return bcp_interps
-
-    # Step 3: Find BCP crossing points for each system
-    def identify_all_system_crossings(
-        bcp_interps,
-        system_eef_pairs,
-        use_theta_phi_crossings=False,
-        use_spin_crossings=False,
-    ):
-        def identify_bcp_crossings(
-            bcp_interps, system_eef_pairs, crossing_var_name="Rho"
-        ):
-            system_crossings = {}
-
-            for system_eef in system_eef_pairs:
-                system_crossings[system_eef] = {}
-
-                # Get all BCPs for this system
-                bcps = list(bcp_interps[system_eef].keys())
-
-                # For each pair of BCPs
-                for i, bcp1 in enumerate(bcps):
-                    for bcp2 in bcps[i + 1:]:
-                        # Get Rho interpolations for both BCPs
-                        rho1 = bcp_interps[system_eef][bcp1][crossing_var_name]
-                        rho2 = bcp_interps[system_eef][bcp2][crossing_var_name]
-
-                        # Get the domain where both interpolations are valid
-                        x_min = max(rho1.x[0], rho2.x[0])
-                        x_max = min(rho1.x[-1], rho2.x[-1])
-
-                        # Create dense sampling of points in this domain
-                        x_vals = np.linspace(x_min, x_max, 1000)
-                        y1 = rho1(x_vals)
-                        y2 = rho2(x_vals)
-
-                        # Find where the difference changes sign (crossing points)
-                        diff = y1 - y2
-                        cross_indices = np.where((diff[:-1] * diff[1:]) < 0)[0]
-
-                        # If there's a crossing
-                        if len(cross_indices) > 0:
-                            # For each crossing (there might be multiple)
-                            for idx in cross_indices:
-                                # Linear interpolation to get more precise crossing point
-                                x0 = x_vals[idx]
-                                x1 = x_vals[idx + 1]
-                                y0 = diff[idx]
-                                y1 = diff[idx + 1]
-                                x_cross = x0 - y0 * (x1 - x0) / (y1 - y0)
-
-                                # Create BCP_CROSSING key (sorted ATOMS values with underscore)
-                                bcp_crossing = "_".join(sorted([bcp1, bcp2]))
-
-                                # Store the crossing point
-                                system_crossings[system_eef][bcp_crossing] = x_cross
-
-            return system_crossings
-
-        all_system_crossings = {}
-        vars = ["Rho"] + (["Theta", "Phi"] if use_theta_phi_crossings else [])
-        for var in vars:
-            for spin in [""] + (["_A", "_B"] if use_spin_crossings else []):
-                if any(c.endswith(spin) for c in df_full.columns):
-                    var_Str = var + spin
-                    all_system_crossings[var_Str] = identify_bcp_crossings(
-                        bcp_interps, system_eef_pairs, crossing_var_name=var_Str
-                    )
-
-        return all_system_crossings
-
-    # Step 4: Find common crossings and create ordered dicts
-    def get_common_crossing_bcp_order(all_system_crossings, system_eef_pairs):
-        # Find crossings that occur in all systems
-        first_var_system_key = list(all_system_crossings.keys())[0]
-        all_crossings = set(
-            all_system_crossings[first_var_system_key][system_eef_pairs[0]].keys(
-            )
-        )
-        for var_systems in all_system_crossings.values():
-            for system_eef in system_eef_pairs:
-                all_crossings &= set(var_systems[system_eef].keys())
-
-        # Order crossings by their R value in the first system
-        first_system = system_eef_pairs[0]
-        ordered_crossings = sorted(
-            all_crossings,
-            key=lambda x: all_system_crossings[first_var_system_key][first_system][x],
-        )
-
-        # Create crossing_order dict
-        crossing_order = {
-            crossing: idx for idx, crossing in enumerate(ordered_crossings)
-        }
-
-        # Get unique BCPs involved in these crossings
-        unique_bcps = set()
-        for crossing in all_crossings:
-            bcp1, bcp2 = crossing.split("_")
-            unique_bcps.add(bcp1)
-            unique_bcps.add(bcp2)
-
-        # Create ordered list of BCPs
-        ordered_bcps = sorted(unique_bcps)
-
-        # Create bcp_order dict
-        bcp_order = {bcp: idx for idx, bcp in enumerate(ordered_bcps)}
-
-        return ordered_crossings, crossing_order, ordered_bcps, bcp_order
-
-    # Step 5: Create output DataFrame with all properties
-    def generate_dataframe(
-        system_eef_pairs,
-        bcp_interps,
-        all_system_crossings,
-        ordered_crossings,
-        ordered_bcps,
-        use_theta_phi_crossings=False,
-        use_spin_crossings=False,
-        use_spin_delta_e_r=use_spin_delta_e_r
-    ):
-        rows = []
-
-        for system_eef in system_eef_pairs:
-            system, eef = system_eef.split("_")
-
-            # Get first BCP to find E_TS and R_TS (all BCPs share same energy values)
-            first_bcp = ordered_bcps[0]
-            energy_interp = bcp_interps[system_eef][first_bcp]["Molecular bond energy"]
-            x_vals = np.linspace(energy_interp.x[0], energy_interp.x[-1], 1000)
-            y_vals = energy_interp(x_vals)
-            max_idx = np.argmax(y_vals)
-            R_TS = x_vals[max_idx]
-            E_TS = y_vals[max_idx]
-
-            # For each crossing in the ordered list
-            for bcp_crossing in ordered_crossings:
-                row = {
-                    "SYSTEM": system,
-                    "EEF": np.float64(eef),
-                    "BCP_CROSSING": bcp_crossing,
-                }
-
-                # Get R and E at crossing
-                R = all_system_crossings["Rho"][system_eef][bcp_crossing]
-                E = energy_interp(R)
-
-                # Calculate ∆E_TS and ∆R_TS
-                row["$\\Delta E_{{\\rm{{{TS}}}}}$"] = E_TS - E
-                row["$\\Delta R_{{\\rm{{{TS}}}}}$"] = R_TS - R
-
-                # Get rho value at crossing
-                bcp1, bcp2 = bcp_crossing.split("_")
-                rho_interp = bcp_interps[system_eef][bcp1]["Rho"]
-                row["$\\rho$"] = np.float64(rho_interp(R))
-
-                # Calculate ∆rho_k for all BCPs
-                for k, bcp_k in enumerate(ordered_bcps):
-                    key = f"$\\Delta \\rho_{{\\rm{{{bcp_k}}}}}$"
-                    if bcp_k in bcp_crossing:
-                        row[key] = np.float64(0.0)
-                    else:
-                        rho_k_interp = bcp_interps[system_eef][bcp_k]["Rho"]
-                        rho_k = rho_k_interp(R)
-                        row[key] = row["$\\rho$"] - rho_k
-
-                # Get all bond distances
-                distance_cols = [
-                    col
-                    for col in bcp_interps[system_eef][first_bcp].keys()
-                    if col.endswith(" distance")
-                ]
-                for dist_col in distance_cols:
-                    bcp_name = dist_col.replace(" distance", "")
-                    dist_interp = bcp_interps[system_eef][first_bcp][dist_col]
-                    row[f"$d_{{\\rm{{{bcp_name}}}}}$"] = np.float64(
-                        dist_interp(R))
-
-                # Add theta/phi crossing information if requested
-                if use_theta_phi_crossings:
-                    if "Theta" in all_system_crossings:
-                        R_theta = all_system_crossings["Theta"][system_eef][
-                            bcp_crossing
-                        ]
-                        row["$\\Delta R_{TS_{\\theta}}$"] = R_TS - R_theta
-                    if "Phi" in all_system_crossings:
-                        R_phi = all_system_crossings["Phi"][system_eef][bcp_crossing]
-                        row["$\\Delta R_{TS_{\\phi}}$"] = R_TS - R_phi
-
-                # Add spin-resolved properties if present
-                if use_spin_crossings:
-                    for spin in ["_A", "_B"]:
-                        spin_str = spin.replace("_", "")
-                        if f"Rho{spin}" in all_system_crossings:
-                            R_spin = all_system_crossings[f"Rho{spin}"][system_eef][
-                                bcp_crossing
-                            ]
-                            if use_spin_delta_e_r:
-                                E_spin = energy_interp(R_spin)
-                                row[f"$\\Delta E_{{\\rm{{{spin_str},TS}}}}$"] = (
-                                    E_TS - E_spin
-                                )
-                                row[f"$\\Delta R_{{\\rm{{{spin_str},TS}}}}$"] = (
-                                    R_TS - R_spin
-                                )
-                            rho_spin_interp = bcp_interps[system_eef][bcp1][
-                                f"Rho{spin}"
-                            ]
-                            row[f"$\\rho_{{\rm{{{spin_str}}}}}$"] = rho_spin_interp(
-                                R_spin
-                            )
-
-                            # Calculate ∆rho_k for spin component
-                            for k, bcp_k in enumerate(ordered_bcps):
-                                rho_k_spin_interp = bcp_interps[system_eef][bcp_k][
-                                    f"Rho{spin}"
-                                ]
-                                rho_k_spin = rho_k_spin_interp(R_spin)
-                                row[
-                                    f"$\\Delta \\rho_{{\\rm{{{spin_str},{bcp_k}}}}}$"
-                                ] = (row[f"$\\rho_{{\rm{{{spin_str}}}}}$"] - rho_k_spin)
-
-                rows.append(row)
-
-        # Create DataFrame from rows
-        return pd.DataFrame(rows), rows
-
-    ### END HELPER FUNCTIONS ###
-
-    # Step 1: Create sorted list of unique SYSTEM-EEF pairs
-    # Create system_eef identifiers and get unique sorted list
-    system_eef_pairs = sorted(
-        set(f"{system}_{eef}" for system, eef in zip(
-            df_full["SYSTEM"], df_full["EEF"]))
-    )
-
-    # Apply whitelists if provided
-    if sys_whitelist:
-        system_eef_pairs = [
-            s for s in system_eef_pairs if s.split("_")[0] in sys_whitelist
-        ]
-    if eef_whitelist:
-        system_eef_pairs = [
-            s for s in system_eef_pairs if s.split("_")[1] in eef_whitelist
-        ]
-
-    # Step 2: Prepare BCP interpolations
-    bcp_interps = prepare_bcp_interpolations(
-        df_full, rxn_coord_name, system_eef_pairs)
-
-    # Step 3: Find BCP rho crossings for each system (and each spin if present) (and theta and phi crossings if requested)
-    all_system_crossings = identify_all_system_crossings(
-        bcp_interps,
-        system_eef_pairs,
-        use_theta_phi_crossings=use_theta_phi_crossings,
-        use_spin_crossings=use_spin_crossings,
-    )
-
-    # Step 4: Find common crossings and create ordered dicts
-    ordered_crossings, crossing_order, ordered_bcps, bcp_order = (
-        get_common_crossing_bcp_order(all_system_crossings, system_eef_pairs)
-    )
-
-    # Step 5: Create output DataFrame with all properties
-    df, rows = generate_dataframe(
-        system_eef_pairs,
-        bcp_interps,
-        all_system_crossings,
-        ordered_crossings,
-        ordered_bcps,
-        use_theta_phi_crossings=use_theta_phi_crossings,
-        use_spin_crossings=use_spin_crossings,
-    )
-
-    return df, rows
-
-
 def statistical_analysis(
     cp_data,
     output_dir
@@ -2293,6 +2241,351 @@ def statistical_analysis(
     use_spin_delta_e_r = False
 
     ### BEGIN HELPER FUNCTIONS ###
+    
+    def prepare_bcp_crossing_df(
+        df_full,
+        rxn_coord_name,
+        use_theta_phi_crossings=False,
+        use_spin_crossings=False,
+        use_spin_delta_e_r=False,
+        sys_whitelist=[],
+        eef_whitelist=[],
+    ):
+        from scipy.interpolate import interp1d
+
+        ### BEGIN HELPER FUNCTIONS ###
+
+        # Step 2: Create nested dict of BCP interpolations
+        def prepare_bcp_interpolations(df_full, rxn_coord_name, system_eef_pairs):
+            # First, identify float columns that aren't the reaction coordinate
+            float_cols = df_full.select_dtypes(
+                include=[np.float64, np.float32]).columns
+            prop_cols = [col for col in float_cols]
+
+            # Initialize the outer dictionary
+            bcp_interps = {}
+
+            # For each system-EEF pair
+            for system_eef in system_eef_pairs:
+                system, eef = system_eef.split("_")
+                # Get data for this system
+                system_mask = (df_full["SYSTEM"] == system) & (
+                    df_full["EEF"].astype(str) == eef
+                )
+                system_data = df_full[system_mask]
+
+                # Initialize dict for this system
+                bcp_interps[system_eef] = {}
+
+                # For each unique BCP in this system
+                for atoms in system_data["ATOMS"].unique():
+                    # Get data for this BCP
+                    bcp_mask = system_data["ATOMS"] == atoms
+                    bcp_data = system_data[bcp_mask]
+
+                    # Initialize dict for this BCP's properties
+                    bcp_interps[system_eef][atoms] = {}
+
+                    # Create interpolation for each property
+                    for prop in prop_cols:
+                        x = bcp_data[rxn_coord_name].values
+                        y = bcp_data[prop].values
+                        # Sort x and y by x values to ensure proper interpolation
+                        sort_idx = np.argsort(x)
+                        x = x[sort_idx]
+                        y = y[sort_idx]
+                        # Create interpolation
+                        interp = interp1d(x, y, kind="linear")
+                        bcp_interps[system_eef][atoms][prop] = interp
+
+            return bcp_interps
+
+        # Step 3: Find BCP crossing points for each system
+        def identify_all_system_crossings(
+            bcp_interps,
+            system_eef_pairs,
+            use_theta_phi_crossings=False,
+            use_spin_crossings=False,
+        ):
+            def identify_bcp_crossings(
+                bcp_interps, system_eef_pairs, crossing_var_name="Rho"
+            ):
+                system_crossings = {}
+
+                for system_eef in system_eef_pairs:
+                    system_crossings[system_eef] = {}
+
+                    # Get all BCPs for this system
+                    bcps = list(bcp_interps[system_eef].keys())
+
+                    # For each pair of BCPs
+                    for i, bcp1 in enumerate(bcps):
+                        for bcp2 in bcps[i + 1:]:
+                            # Get Rho interpolations for both BCPs
+                            rho1 = bcp_interps[system_eef][bcp1][crossing_var_name]
+                            rho2 = bcp_interps[system_eef][bcp2][crossing_var_name]
+
+                            # Get the domain where both interpolations are valid
+                            x_min = max(rho1.x[0], rho2.x[0])
+                            x_max = min(rho1.x[-1], rho2.x[-1])
+
+                            # Create dense sampling of points in this domain
+                            x_vals = np.linspace(x_min, x_max, 1000)
+                            y1 = rho1(x_vals)
+                            y2 = rho2(x_vals)
+
+                            # Find where the difference changes sign (crossing points)
+                            diff = y1 - y2
+                            cross_indices = np.where((diff[:-1] * diff[1:]) < 0)[0]
+
+                            # If there's a crossing
+                            if len(cross_indices) > 0:
+                                # For each crossing (there might be multiple)
+                                for idx in cross_indices:
+                                    # Linear interpolation to get more precise crossing point
+                                    x0 = x_vals[idx]
+                                    x1 = x_vals[idx + 1]
+                                    y0 = diff[idx]
+                                    y1 = diff[idx + 1]
+                                    x_cross = x0 - y0 * (x1 - x0) / (y1 - y0)
+
+                                    # Create BCP_CROSSING key (sorted ATOMS values with underscore)
+                                    bcp_crossing = "_".join(sorted([bcp1, bcp2]))
+
+                                    # Store the crossing point
+                                    system_crossings[system_eef][bcp_crossing] = x_cross
+
+                return system_crossings
+
+            all_system_crossings = {}
+            vars = ["Rho"] + (["Theta", "Phi"] if use_theta_phi_crossings else [])
+            for var in vars:
+                for spin in [""] + (["_A", "_B"] if use_spin_crossings else []):
+                    if any(c.endswith(spin) for c in df_full.columns):
+                        var_Str = var + spin
+                        all_system_crossings[var_Str] = identify_bcp_crossings(
+                            bcp_interps, system_eef_pairs, crossing_var_name=var_Str
+                        )
+
+            return all_system_crossings
+
+        # Step 4: Find common crossings and create ordered dicts
+        def get_common_crossing_bcp_order(all_system_crossings, system_eef_pairs):
+            # Find crossings that occur in all systems
+            first_var_system_key = list(all_system_crossings.keys())[0]
+            all_crossings = set(
+                all_system_crossings[first_var_system_key][system_eef_pairs[0]].keys(
+                )
+            )
+            for var_systems in all_system_crossings.values():
+                for system_eef in system_eef_pairs:
+                    all_crossings &= set(var_systems[system_eef].keys())
+
+            # Order crossings by their R value in the first system
+            first_system = system_eef_pairs[0]
+            ordered_crossings = sorted(
+                all_crossings,
+                key=lambda x: all_system_crossings[first_var_system_key][first_system][x],
+            )
+
+            # Create crossing_order dict
+            crossing_order = {
+                crossing: idx for idx, crossing in enumerate(ordered_crossings)
+            }
+
+            # Get unique BCPs involved in these crossings
+            unique_bcps = set()
+            for crossing in all_crossings:
+                bcp1, bcp2 = crossing.split("_")
+                unique_bcps.add(bcp1)
+                unique_bcps.add(bcp2)
+
+            # Create ordered list of BCPs
+            ordered_bcps = sorted(unique_bcps)
+
+            # Create bcp_order dict
+            bcp_order = {bcp: idx for idx, bcp in enumerate(ordered_bcps)}
+
+            return ordered_crossings, crossing_order, ordered_bcps, bcp_order
+
+        # Step 5: Create output DataFrame with all properties
+        def generate_dataframe(
+            system_eef_pairs,
+            bcp_interps,
+            all_system_crossings,
+            ordered_crossings,
+            ordered_bcps,
+            use_theta_phi_crossings=False,
+            use_spin_crossings=False,
+            use_spin_delta_e_r=use_spin_delta_e_r
+        ):
+            rows = []
+
+            for system_eef in system_eef_pairs:
+                system, eef = system_eef.split("_")
+
+                # Get first BCP to find E_TS and R_TS (all BCPs share same energy values)
+                first_bcp = ordered_bcps[0]
+                energy_interp = bcp_interps[system_eef][first_bcp]["Molecular bond energy"]
+                
+                # Get original x-values from the interpolation object for start and end points
+                original_x_for_energy = energy_interp.x
+                
+                # Calculate E_start and E_end
+                E_start = energy_interp(original_x_for_energy[0])
+                E_end = energy_interp(original_x_for_energy[-1])
+
+                # Find E_TS (max energy) using dense sampling
+                x_vals_dense_sampling = np.linspace(original_x_for_energy[0], original_x_for_energy[-1], 1000)
+                y_vals_dense_sampling = energy_interp(x_vals_dense_sampling)
+                max_idx = np.argmax(y_vals_dense_sampling)
+                R_TS = x_vals_dense_sampling[max_idx]
+                E_TS = y_vals_dense_sampling[max_idx]
+
+                # Calculate reaction barrier energy
+                reaction_barrier_energy = E_TS - max(E_start, E_end)
+
+                # For each crossing in the ordered list
+                for bcp_crossing in ordered_crossings:
+                    row = {
+                        "SYSTEM": system,
+                        "Reaction Barrier Energy": reaction_barrier_energy,
+                        "EEF": np.float64(eef),
+                        "BCP_CROSSING": bcp_crossing,
+                    }
+
+                    # Get R and E at crossing
+                    R = all_system_crossings["Rho"][system_eef][bcp_crossing]
+                    E = energy_interp(R)
+
+                    # Calculate ∆E_TS and ∆R_TS
+                    row["$\\Delta E_{{\\rm{{{TS}}}}}$"] = E_TS - E
+                    row["$\\Delta R_{{\\rm{{{TS}}}}}$"] = R_TS - R
+
+                    # Get rho value at crossing
+                    bcp1, bcp2 = bcp_crossing.split("_")
+                    rho_interp = bcp_interps[system_eef][bcp1]["Rho"]
+                    row["$\\rho$"] = np.float64(rho_interp(R))
+
+                    # Calculate ∆rho_k for all BCPs
+                    for k, bcp_k in enumerate(ordered_bcps):
+                        key = f"$\\Delta \\rho_{{\\rm{{{bcp_k}}}}}$"
+                        if bcp_k in bcp_crossing:
+                            row[key] = np.float64(0.0)
+                        else:
+                            rho_k_interp = bcp_interps[system_eef][bcp_k]["Rho"]
+                            rho_k = rho_k_interp(R)
+                            row[key] = row["$\\rho$"] - rho_k
+
+                    # Get all bond distances
+                    distance_cols = [
+                        col
+                        for col in bcp_interps[system_eef][first_bcp].keys()
+                        if col.endswith(" distance")
+                    ]
+                    for dist_col in distance_cols:
+                        bcp_name = dist_col.replace(" distance", "")
+                        dist_interp = bcp_interps[system_eef][first_bcp][dist_col]
+                        row[f"$d_{{\\rm{{{bcp_name}}}}}$"] = np.float64(
+                            dist_interp(R))
+
+                    # Add theta/phi crossing information if requested
+                    if use_theta_phi_crossings:
+                        if "Theta" in all_system_crossings:
+                            R_theta = all_system_crossings["Theta"][system_eef][
+                                bcp_crossing
+                            ]
+                            row["$\\Delta R_{TS_{\\theta}}$"] = R_TS - R_theta
+                        if "Phi" in all_system_crossings:
+                            R_phi = all_system_crossings["Phi"][system_eef][bcp_crossing]
+                            row["$\\Delta R_{TS_{\\phi}}$"] = R_TS - R_phi
+
+                    # Add spin-resolved properties if present
+                    if use_spin_crossings:
+                        for spin in ["_A", "_B"]:
+                            spin_str = spin.replace("_", "")
+                            if f"Rho{spin}" in all_system_crossings:
+                                R_spin = all_system_crossings[f"Rho{spin}"][system_eef][
+                                    bcp_crossing
+                                ]
+                                if use_spin_delta_e_r:
+                                    E_spin = energy_interp(R_spin)
+                                    row[f"$\\Delta E_{{\\rm{{{spin_str},TS}}}}$"] = (
+                                        E_TS - E_spin
+                                    )
+                                    row[f"$\\Delta R_{{\\rm{{{spin_str},TS}}}}$"] = (
+                                        R_TS - R_spin
+                                    )
+                                rho_spin_interp = bcp_interps[system_eef][bcp1][
+                                    f"Rho{spin}"
+                                ]
+                                row[f"$\\rho_{{\rm{{{spin_str}}}}}$"] = rho_spin_interp(
+                                    R_spin
+                                )
+
+                                # Calculate ∆rho_k for spin component
+                                for k, bcp_k in enumerate(ordered_bcps):
+                                    rho_k_spin_interp = bcp_interps[system_eef][bcp_k][
+                                        f"Rho{spin}"
+                                    ]
+                                    rho_k_spin = rho_k_spin_interp(R_spin)
+                                    row[
+                                        f"$\\Delta \\rho_{{\\rm{{{spin_str},{bcp_k}}}}}$"
+                                    ] = (row[f"$\\rho_{{\rm{{{spin_str}}}}}$"] - rho_k_spin)
+
+                    rows.append(row)
+
+            # Create DataFrame from rows
+            return pd.DataFrame(rows), rows
+
+        ### END HELPER FUNCTIONS ###
+
+        # Step 1: Create sorted list of unique SYSTEM-EEF pairs
+        # Create system_eef identifiers and get unique sorted list
+        system_eef_pairs = sorted(
+            set(f"{system}_{eef}" for system, eef in zip(
+                df_full["SYSTEM"], df_full["EEF"]))
+        )
+
+        # Apply whitelists if provided
+        if sys_whitelist:
+            system_eef_pairs = [
+                s for s in system_eef_pairs if s.split("_")[0] in sys_whitelist
+            ]
+        if eef_whitelist:
+            system_eef_pairs = [
+                s for s in system_eef_pairs if s.split("_")[1] in eef_whitelist
+            ]
+
+        # Step 2: Prepare BCP interpolations
+        bcp_interps = prepare_bcp_interpolations(
+            df_full, rxn_coord_name, system_eef_pairs)
+
+        # Step 3: Find BCP rho crossings for each system (and each spin if present) (and theta and phi crossings if requested)
+        all_system_crossings = identify_all_system_crossings(
+            bcp_interps,
+            system_eef_pairs,
+            use_theta_phi_crossings=use_theta_phi_crossings,
+            use_spin_crossings=use_spin_crossings,
+        )
+
+        # Step 4: Find common crossings and create ordered dicts
+        ordered_crossings, crossing_order, ordered_bcps, bcp_order = (
+            get_common_crossing_bcp_order(all_system_crossings, system_eef_pairs)
+        )
+
+        # Step 5: Create output DataFrame with all properties
+        df, rows = generate_dataframe(
+            system_eef_pairs,
+            bcp_interps,
+            all_system_crossings,
+            ordered_crossings,
+            ordered_bcps,
+            use_theta_phi_crossings=use_theta_phi_crossings,
+            use_spin_crossings=use_spin_crossings,
+        )
+
+        return df, rows
 
     # Generate correlations matrices from a provided DataFrame
     def create_correlation_matrix(df: pd.DataFrame, output_dir: str) -> None:
@@ -2666,7 +2959,7 @@ def statistical_analysis(
         return pca, pca_df
 
     def perform_boruta(df: pd.DataFrame,
-                       target_col: int,
+                       target_name: str,
                        output_dir: str,
                        max_iter: int = 100,
                        perc: int = 100,
@@ -2690,9 +2983,10 @@ def statistical_analysis(
         """
         # Get numeric columns
         numeric_df = df.select_dtypes(include=[np.number])
+        # Identify target column
+        target_col = numeric_df.columns.get_loc(target_name)
         feature_cols = [col for i, col in enumerate(
             numeric_df.columns) if i != target_col]
-        target_name = numeric_df.columns[target_col]
 
         unique_sys = "+".join(df["SYSTEM"].unique().tolist())
         if any("{A" in c or "{B" in c for c in df.columns):
@@ -2701,7 +2995,7 @@ def statistical_analysis(
             unique_sys += "_directionality"
 
         print(
-            f"Performing Boruta feature selection for target column: {target_name}")
+            f"Performing Boruta feature selection for target column: {target_name}, {target_col = }")
 
         # Prepare X and y
         X = numeric_df[feature_cols]
@@ -2780,7 +3074,7 @@ def statistical_analysis(
                 f.write(f"- Decision: {decision_map[feat]}\n\n")
 
         # First create list of columns we want to keep
-        columns_to_keep = ['SYSTEM', 'BCP_CROSSING', target_name]
+        columns_to_keep = ['SYSTEM', 'BCP_CROSSING', target_col]
         if 'EEF' not in selected_features + tentative_features:
             columns_to_keep.append('EEF')
 
@@ -2792,7 +3086,7 @@ def statistical_analysis(
         selected_tentative_df = df[columns_to_keep].copy()
 
         # First create list of columns we want to keep
-        columns_to_keep = ['SYSTEM', 'BCP_CROSSING', target_name]
+        columns_to_keep = ['SYSTEM', 'BCP_CROSSING', target_col]
         if 'EEF' not in selected_features:
             columns_to_keep.append('EEF')
 
@@ -2834,9 +3128,9 @@ def statistical_analysis(
     # - "EEF" which is -1, 0, 1 if the "JOB_NAME" contains "revEEF", "noEEF", "origEEF" respectively
     # - "sys" which is the system number extracted from the "JOB_NAME", the first underscore-separated value
 
-    df_full["EEF"] = df_full["JOB_NAME"].apply(
-        lambda x: -1 if "revEEF" in x else (0 if "noEEF" in x else 1)
-    )
+    # df_full["EEF"] = df_full["JOB_NAME"].apply(
+    #     lambda x: -1 if "revEEF" in x else (0 if "noEEF" in x else 1)
+    # )
     df_full["SYSTEM"] = df_full["JOB_NAME"].apply(lambda x: x.split("_")[0])
 
     # get unique SYSTEM values
@@ -2849,7 +3143,7 @@ def statistical_analysis(
     alpha_list = [0.01, 0.025, 0.05, 0.1]
     perc_list = [100, 95, 90]
 
-    target_col = '$\\Delta E_{{\\rm{{{TS}}}}}$'
+    target_col = 'Reaction Barrier Energy'
 
     for sys_whitelist in sys_whitelists:
         for use_theta_phi_crossings in directionality_spin:
@@ -2886,8 +3180,7 @@ def statistical_analysis(
                     df, f"{output_dir}/{system_string}/all_features/correlation_analysis"
                 )
                 pca, pca_df = perform_pca(
-                    df, [
-                        target_col], f"{output_dir}/{system_string}/all_features/pca_analysis"
+                    df, [target_col], f"{output_dir}/{system_string}/all_features/pca_analysis"
                 )
 
                 do_break = False
@@ -2903,7 +3196,7 @@ def statistical_analysis(
                         boruta_string = f"perc_{perc}_alpha_{alpha}"
 
                         selected_df, selected_tentative_df, boruta = perform_boruta(
-                            df, 1, f"{output_dir}/{system_string}/boruta_{boruta_string}", perc=perc, alpha=alpha
+                            df, target_col, f"{output_dir}/{system_string}/boruta_{boruta_string}", perc=perc, alpha=alpha
                         )
                         # continue if all independent variable features are rejected
                         if len(selected_df.columns) > 4:
@@ -2911,8 +3204,7 @@ def statistical_analysis(
                                 selected_df, f"{output_dir}/{system_string}/boruta_{boruta_string}/selected_correlation_analysis"
                             )
                             pca, pca_df = perform_pca(
-                                selected_df, [
-                                    target_col], f"{output_dir}/{system_string}/boruta_{boruta_string}/selected_pca_analysis"
+                                selected_df, [target_col], f"{output_dir}/{system_string}/boruta_{boruta_string}/selected_pca_analysis"
                             )
 
                         if len(selected_tentative_df.columns) > len(selected_df.columns):
@@ -2920,8 +3212,7 @@ def statistical_analysis(
                                 selected_tentative_df, f"{output_dir}/{system_string}/boruta_{boruta_string}/selected_tentative_correlation_analysis"
                             )
                             pca, pca_df = perform_pca(
-                                selected_tentative_df, [
-                                    target_col], f"{output_dir}/{system_string}/boruta_{boruta_string}/selected_tentative_pca_analysis"
+                                selected_tentative_df, [target_col], f"{output_dir}/{system_string}/boruta_{boruta_string}/selected_tentative_pca_analysis"
                             )
 
                         if len(selected_df.columns) > check_num_features:
@@ -2945,11 +3236,22 @@ if __name__ == "__main__":
         )
     elif restart_dill_paths and len(restart_dill_paths) > 0:
         log_print("Performing post-processing on provided restart dill files...")
-        for restart_dill_path, atom_pairs in zip(restart_dill_paths, atom_pairs_list):
-            test_post_processing_multiple_jobs(
-                restart_dill_path, atom_pairs, unrestricted=unrestricted_calculation
-            )
+        if len(plot_x_prop_lists) == 0:
+            for restart_dill_path, atom_pairs in zip(restart_dill_paths, atom_pairs_list):
+                test_post_processing_multiple_jobs(
+                    restart_dill_path, atom_pairs, unrestricted=unrestricted_calculation
+                )
+        else:
+            for restart_dill_path, atom_pairs, x_prop_list in zip(restart_dill_paths, atom_pairs_list, plot_x_prop_lists):
+                test_post_processing_multiple_jobs(
+                    restart_dill_path, atom_pairs, unrestricted=unrestricted_calculation, x_prop_list=x_prop_list
+                )
     else:
         log_print("Running ADF NEB BCP analysis on provided job paths...")
-        for job_path, atom_pairs in zip(ams_job_paths, atom_pairs_list):
-            main(job_path, atom_pairs)
+        if len(plot_x_prop_lists) == 0:    
+            for job_path, atom_pairs in zip(ams_job_paths, atom_pairs_list):
+                main(job_path, atom_pairs)
+        else:
+            for job_path, atom_pairs, x_prop_list in zip(ams_job_paths, atom_pairs_list, plot_x_prop_lists):
+                main(job_path, atom_pairs, x_prop_list)
+            
