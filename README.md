@@ -11,7 +11,9 @@ This repository's main tool analyzes the rotation of bond critical point eigenve
 - **Comprehensive Eigenvector Tracking**: Follow physical eigenvectors through eigenvalue crossings
 - **4-Way Continuity Correction**: Automatically detect and fix swaps, sign flips, and combinations
 - **Multi-Density Analysis**: Consistent tracking across Total, A, and B electron densities
-- **Real-Time Correction**: Apply fixes before visualization and analysis
+- **Enhanced Data Output**: Dual CSV system with detailed trajectories and statistical summaries
+- **Rotation Dynamics Analysis**: Frame-to-frame velocity and intermediate motion quantification
+- **Complete Documentation**: Timestamped reports with scientific interpretation
 
 ### Quick Start
 
@@ -29,11 +31,13 @@ python scripts/bcp_eigenvector_rotation_analysis.py
 
 For Fe1-N44 bond analysis in heme-propane reaction:
 
-| Calculation | EV1 Rotation | EV2 Rotation | Physical Interpretation |
-|-------------|--------------|--------------|------------------------|
-| origEEF     | 3.2°         | 3.3°         | Minimal field effects on primary eigenvectors |
-| revEEF      | 12.8°        | 12.5°        | Moderate rotation with reversed field |
-| noEEF       | 12.0°        | 11.7°        | Baseline rotation without field |
+| Calculation | Net Rotation | Max Range | Intermediate Motion | Interpretation |
+|-------------|--------------|-----------|--------------------|-----------------------|
+| origEEF     | 3.2°         | 21.2°     | 18.0°              | Significant hidden dynamics |
+| revEEF      | 12.8°        | 14.2°     | 1.4°               | Steady progression |
+| noEEF       | 12.0°        | 13.5°     | 1.5°               | Consistent rotation |
+
+**Key Insight**: The origEEF calculation shows dramatic intermediate eigenvector motion (21.2° range) that largely returns to near the starting orientation (3.2° net), revealing complex field-induced dynamics invisible in traditional analysis.
 
 ## Documentation
 
@@ -53,6 +57,10 @@ AMSPython/
 │   ├── ADF_NEB_bcp_analysis.py              # ADF-specific utilities
 │   └── ...                                   # Other quantum chemistry tools
 ├── bcp_rotation_plots/                       # Analysis output directory
+│   ├── Fe1_N44_angles.csv                   # Detailed time-series data
+│   ├── Fe1_N44_summary.csv                  # Statistical summary data
+│   ├── bcp_analysis_output_*.txt            # Comprehensive reports
+│   └── *.png                                # Visualization plots
 ├── BCP_EIGENVECTOR_ANALYSIS.md             # Comprehensive documentation
 ├── requirements.txt                          # Python dependencies
 └── His_propane_NEB_NF_cp_info_full.csv     # Sample QTAIM data

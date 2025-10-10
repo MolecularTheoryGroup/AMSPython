@@ -948,6 +948,159 @@ def calculate_start_to_end_rotation(df: pd.DataFrame, bcp: str) -> Dict:
 # VISUALIZATION
 # ============================================================================
 
+def plot_relative_rotation_rates(angles_data: Dict, bcp: str, output_dir: Path):
+    """
+    Create plots showing relative rotation rates (angle changes between consecutive images).
+    One plot per density type per calculation type.
+    
+    Parameters:
+    -----------
+    angles_data : dict
+        Nested dictionary: {calc_type: {ev_type: {density: [(image_num, angle), ...]}}}
+    bcp : str
+        Bond critical point identifier
+    output_dir : Path
+        Directory to save plots
+    """
+    for calc_type in angles_data:
+        calc_short = calc_type.split('_')[-1]  # Extract EEF type
+        
+        # Process each density type separately
+        for density in DENSITY_TYPES:
+            density_label = DENSITY_LABELS[density]
+            
+            # Get EV1 and EV2 data for this density
+            if 'EV1' not in angles_data[calc_type] or 'EV2' not in angles_data[calc_type]:
+                continue
+                
+            if density not in angles_data[calc_type]['EV1'] or density not in angles_data[calc_type]['EV2']:
+                continue
+                
+            ev1_data = angles_data[calc_type]['EV1'][density]
+            ev2_data = angles_data[calc_type]['EV2'][density]
+            
+            if len(ev1_data) < 2 or len(ev2_data) < 2:
+                continue
+            
+            # Calculate relative rotation rates (consecutive image differences)
+            ev1_rates = []
+            ev2_rates = []
+            
+            for i in range(1, len(ev1_data)):
+                prev_angle1 = ev1_data[i-1][1]
+                curr_angle1 = ev1_data[i][1]
+                rate1 = abs(curr_angle1 - prev_angle1)
+                ev1_rates.append((ev1_data[i][0], rate1))  # (image_num, rate)
+                
+                prev_angle2 = ev2_data[i-1][1]
+                curr_angle2 = ev2_data[i][1]
+                rate2 = abs(curr_angle2 - prev_angle2)
+                ev2_rates.append((ev2_data[i][0], rate2))
+            
+            # Create plot
+            plt.figure(figsize=(12, 6))
+            
+            # Plot EV1 and EV2 rotation rates
+            images1, rates1 = zip(*ev1_rates)
+            images2, rates2 = zip(*ev2_rates)
+            
+            plt.plot(images1, rates1, 'o-', color='blue', label='EV1', markersize=4, linewidth=2)
+            plt.plot(images2, rates2, 's-', color='red', label='EV2', markersize=4, linewidth=2)
+            
+            plt.xlabel('NEB Image Number')
+            plt.ylabel('Angular Change from Previous Image (degrees)')
+            plt.title(f'{bcp} - Relative Rotation Rates ({calc_short}, {density_label})')
+            plt.legend()
+            plt.grid(True, alpha=0.3)
+            
+            # Save plot
+            clean_bcp = bcp.replace('-', '_')
+            clean_density = density_label.replace(' ', '_')
+            filename = f"{clean_bcp}_{calc_short}_{clean_density}_rotation_rates.png"
+            plt.savefig(output_dir / filename, dpi=300, bbox_inches='tight')
+            plt.close()
+            
+            print(f"Saved rotation rate plot: {output_dir / filename}")
+
+
+def calculate_maximum_rotations(angles_data: Dict, bcp: str) -> Dict:
+    """
+    Calculate the maximum rotation range for each eigenvector throughout the reaction.
+    This finds the maximum angle difference between any two images.
+    
+    Parameters:
+    -----------
+    angles_data : dict
+        Nested dictionary: {calc_type: {ev_type: {density: [(image_num, angle), ...]}}}
+    bcp : str
+        Bond critical point identifier
+        
+    Returns:
+    --------
+    dict
+        {calc_type: {ev_type: {density: max_rotation_angle}}}
+    """
+    max_rotations = {}
+    
+    for calc_type in angles_data:
+        max_rotations[calc_type] = {}
+        
+        for ev_type in angles_data[calc_type]:
+            max_rotations[calc_type][ev_type] = {}
+            
+            for density in angles_data[calc_type][ev_type]:
+                angle_list = angles_data[calc_type][ev_type][density]
+                
+                if len(angle_list) < 2:
+                    max_rotations[calc_type][ev_type][density] = 0.0
+                    continue
+                
+                # Extract just the angles (ignore image numbers)
+                angles = [angle for _, angle in angle_list]
+                
+                # Find maximum difference between any two angles
+                max_diff = 0.0
+                for i in range(len(angles)):
+                    for j in range(i+1, len(angles)):
+                        diff = abs(angles[i] - angles[j])
+                        max_diff = max(max_diff, diff)
+                
+                max_rotations[calc_type][ev_type][density] = max_diff
+    
+    return max_rotations
+
+
+def print_maximum_rotation_summary(max_rotations: Dict):
+    """
+    Print summary of maximum rotation ranges for all eigenvectors.
+    
+    Parameters:
+    -----------
+    max_rotations : dict
+        Maximum rotation data from calculate_maximum_rotations()
+    """
+    print("\n" + "="*80)
+    print("MAXIMUM EIGENVECTOR ROTATION RANGES")
+    print("="*80)
+    
+    for bcp in max_rotations:
+        print(f"\n{bcp}:")
+        print("-" * 80)
+        print(f"{'Calculation':<12} {'Eigenvector':<12} {'Density':<20} {'Max Range (deg)':<15}")
+        print("-" * 80)
+        
+        for calc_type in max_rotations[bcp]:
+            calc_short = calc_type.split('_')[-1] if '_' in calc_type else calc_type
+            
+            for ev_type in ['EV1', 'EV2', 'EV3']:
+                if ev_type in max_rotations[bcp][calc_type]:
+                    for density in DENSITY_TYPES:
+                        if density in max_rotations[bcp][calc_type][ev_type]:
+                            max_rot = max_rotations[bcp][calc_type][ev_type][density]
+                            density_label = DENSITY_LABELS[density]
+                            print(f"{calc_short:<12} {ev_type:<12} {density_label:<20} {max_rot:>13.2f}°")
+
+
 def plot_eigenvector_rotation(angles_data: Dict, bcp: str, output_dir: Path):
     """
     Create plots showing EV1 and EV2 rotation for each calculation type.
@@ -1174,15 +1327,26 @@ def save_rotation_data_to_csv(all_angles: Dict[str, Dict], output_dir: Path):
                 for density in DENSITY_TYPES:
                     if density not in all_angles[bcp][calc_type][ev_type]:
                         continue
+                    
+                    # Sort the data by image number to ensure correct order
+                    angle_data = sorted(all_angles[bcp][calc_type][ev_type][density])
+                    
+                    for i, (image_num, angle) in enumerate(angle_data):
+                        # Calculate relative angle (change from previous image)
+                        if i == 0:
+                            relative_angle = 0.0  # First image has no previous reference
+                        else:
+                            prev_angle = angle_data[i-1][1]
+                            relative_angle = angle - prev_angle
                         
-                    for image_num, angle in all_angles[bcp][calc_type][ev_type][density]:
                         rows.append({
                             'BCP': bcp,
                             'Calculation': calc_short,
                             'Eigenvector': ev_type,
                             'Density': DENSITY_LABELS[density],
                             'Image_Number': image_num,
-                            'Angle_to_Reference_deg': angle
+                            'Angle_to_Reference_deg': angle,
+                            'Relative_Angle_deg': relative_angle
                         })
         
         if rows:
@@ -1190,7 +1354,57 @@ def save_rotation_data_to_csv(all_angles: Dict[str, Dict], output_dir: Path):
             filename = f"{bcp.replace('-', '_')}_angles.csv"
             filepath = output_dir / filename
             df_out.to_csv(filepath, index=False)
-            print(f"Saved angle data: {filepath}")
+            print(f"Saved angle data with relative angles: {filepath}")
+
+
+def save_summary_data_to_csv(all_rotations: Dict, all_max_rotations: Dict, output_dir: Path):
+    """
+    Save summary rotation data (start-to-end and maximum ranges) to CSV files.
+    
+    Parameters:
+    -----------
+    all_rotations : dict
+        {bcp: {calc_type: {ev_type: {density: rotation_value}}}}
+    all_max_rotations : dict  
+        {bcp: {calc_type: {ev_type: {density: max_rotation_value}}}}
+    output_dir : Path
+        Directory to save CSV files
+    """
+    output_dir.mkdir(exist_ok=True, parents=True)
+    
+    for bcp in all_rotations:
+        rows = []
+        
+        for calc_type in all_rotations[bcp]:
+            calc_short = calc_type.split('_')[-1]  # Extract origEEF, revEEF, noEEF
+            
+            for ev_type in EIGENVECTOR_TYPES:
+                if ev_type not in all_rotations[bcp][calc_type]:
+                    continue
+                    
+                for density in DENSITY_TYPES:
+                    if density not in all_rotations[bcp][calc_type][ev_type]:
+                        continue
+                    
+                    start_to_end = all_rotations[bcp][calc_type][ev_type][density]
+                    max_range = all_max_rotations[bcp][calc_type][ev_type][density]
+                    
+                    rows.append({
+                        'BCP': bcp,
+                        'Calculation': calc_short,
+                        'Eigenvector': ev_type,
+                        'Density': DENSITY_LABELS[density],
+                        'Start_to_End_Rotation_deg': start_to_end,
+                        'Maximum_Range_deg': max_range,
+                        'Intermediate_Motion_deg': max_range - abs(start_to_end)  # How much extra motion beyond net change
+                    })
+        
+        if rows:
+            df_out = pd.DataFrame(rows)
+            filename = f"{bcp.replace('-', '_')}_summary.csv"
+            filepath = output_dir / filename
+            df_out.to_csv(filepath, index=False)
+            print(f"Saved summary data: {filepath}")
 
 
 # ============================================================================
@@ -1289,6 +1503,133 @@ def apply_comprehensive_eigenvector_correction(all_angles_data):
     return corrected_data
 
 
+def save_analysis_output_to_file(all_rotations: Dict, all_max_rotations: Dict, output_dir: Path):
+    """
+    Save complete analysis output to a text file.
+    
+    Parameters:
+    -----------
+    all_rotations : dict
+        Start-to-end rotation data
+    all_max_rotations : dict  
+        Maximum rotation range data
+    output_dir : Path
+        Directory to save the output file
+    """
+    from datetime import datetime
+    
+    # Create output filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_file = output_dir / f"bcp_analysis_output_{timestamp}.txt"
+    
+    with open(output_file, 'w') as f:
+        # Write header
+        f.write("=" * 80 + "\n")
+        f.write("BOND CRITICAL POINT EIGENVECTOR ROTATION ANALYSIS\n")
+        f.write("=" * 80 + "\n\n")
+        f.write(f"Analysis completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"Output directory: {output_dir.absolute()}\n\n")
+        
+        # Write start-to-end rotation summary
+        if all_rotations:
+            f.write("=" * 80 + "\n")
+            f.write("START-TO-END EIGENVECTOR ROTATION SUMMARY\n")
+            f.write("=" * 80 + "\n\n")
+            
+            for bcp in all_rotations:
+                f.write(f"{bcp}:\n")
+                f.write("-" * 80 + "\n")
+                f.write(f"{'Calculation':<12} {'Eigenvector':<12} {'Density':<20} {'Rotation (deg)':<15}\n")
+                f.write("-" * 80 + "\n")
+                
+                for calc_type in all_rotations[bcp]:
+                    calc_short = calc_type.split('_')[-1] if '_' in calc_type else calc_type
+                    
+                    for ev_type in ['EV1', 'EV2', 'EV3']:
+                        if ev_type in all_rotations[bcp][calc_type]:
+                            for density in DENSITY_TYPES:
+                                if density in all_rotations[bcp][calc_type][ev_type]:
+                                    rotation = all_rotations[bcp][calc_type][ev_type][density]
+                                    density_label = DENSITY_LABELS[density]
+                                    f.write(f"{calc_short:<12} {ev_type:<12} {density_label:<20} {rotation:>13.2f}°\n")
+                f.write("\n")
+        
+        # Write maximum rotation ranges
+        if all_max_rotations:
+            f.write("=" * 80 + "\n")
+            f.write("MAXIMUM EIGENVECTOR ROTATION RANGES\n")
+            f.write("=" * 80 + "\n\n")
+            
+            for bcp in all_max_rotations:
+                f.write(f"{bcp}:\n")
+                f.write("-" * 80 + "\n")
+                f.write(f"{'Calculation':<12} {'Eigenvector':<12} {'Density':<20} {'Max Range (deg)':<15}\n")
+                f.write("-" * 80 + "\n")
+                
+                for calc_type in all_max_rotations[bcp]:
+                    calc_short = calc_type.split('_')[-1] if '_' in calc_type else calc_type
+                    
+                    for ev_type in ['EV1', 'EV2', 'EV3']:
+                        if ev_type in all_max_rotations[bcp][calc_type]:
+                            for density in DENSITY_TYPES:
+                                if density in all_max_rotations[bcp][calc_type][ev_type]:
+                                    max_rot = all_max_rotations[bcp][calc_type][ev_type][density]
+                                    density_label = DENSITY_LABELS[density]
+                                    f.write(f"{calc_short:<12} {ev_type:<12} {density_label:<20} {max_rot:>13.2f}°\n")
+                f.write("\n")
+        
+        # Write analysis summary and interpretation
+        f.write("=" * 80 + "\n")
+        f.write("ANALYSIS INTERPRETATION\n") 
+        f.write("=" * 80 + "\n\n")
+        
+        f.write("Key Insights:\n")
+        f.write("-" * 40 + "\n")
+        
+        if all_rotations and all_max_rotations:
+            for bcp in all_rotations:
+                f.write(f"\n{bcp} Bond Critical Point:\n\n")
+                
+                # Compare start-to-end vs max range for each calculation
+                for calc_type in all_rotations[bcp]:
+                    calc_short = calc_type.split('_')[-1] if '_' in calc_type else calc_type
+                    f.write(f"  {calc_short} Calculation:\n")
+                    
+                    # Focus on EV1 Total Density as representative
+                    if ('EV1' in all_rotations[bcp][calc_type] and 
+                        '' in all_rotations[bcp][calc_type]['EV1'] and
+                        calc_type in all_max_rotations[bcp] and
+                        'EV1' in all_max_rotations[bcp][calc_type] and
+                        '' in all_max_rotations[bcp][calc_type]['EV1']):
+                        
+                        start_end = all_rotations[bcp][calc_type]['EV1']['']
+                        max_range = all_max_rotations[bcp][calc_type]['EV1']['']
+                        
+                        f.write(f"    - Start-to-end rotation: {start_end:.1f}°\n")
+                        f.write(f"    - Maximum range: {max_range:.1f}°\n")
+                        
+                        if max_range > start_end * 2:
+                            f.write(f"    - Interpretation: Significant intermediate motion (returns near start)\n")
+                        elif max_range > start_end * 1.5:
+                            f.write(f"    - Interpretation: Moderate intermediate motion\n")
+                        else:
+                            f.write(f"    - Interpretation: Steady progression throughout reaction\n")
+                    f.write("\n")
+        
+        f.write("\nNotes:\n")
+        f.write("- Start-to-end rotation: Net change from first to last image\n")
+        f.write("- Maximum range: Largest angle difference between any two images\n")
+        f.write("- All values use corrected eigenvector data (sign/swap artifacts removed)\n")
+        f.write("- EV3 typically shows minimal rotation (bond axis direction)\n")
+        f.write("- Cross-density analysis reveals spin-dependent field effects\n\n")
+        
+        f.write("=" * 80 + "\n")
+        f.write("ANALYSIS COMPLETE\n")
+        f.write("=" * 80 + "\n")
+    
+    print(f"Saved complete analysis output: {output_file}")
+
+
 def main(csv_file: str):
     """Main analysis pipeline."""
     print("\n" + "="*80)
@@ -1321,23 +1662,43 @@ def main(csv_file: str):
             all_angles = corrected_angles
     
     # Now create plots and calculate rotations using corrected data
+    all_max_rotations = {}
     for bcp in BOND_CRITICAL_POINTS:
         if bcp in all_angles:
-            # Create plots with corrected data
+            # Create standard plots with corrected data
             plot_eigenvector_rotation(all_angles[bcp], bcp, OUTPUT_DIR)
+            
+            # Create NEW ANALYSIS: relative rotation rate plots
+            plot_relative_rotation_rates(all_angles[bcp], bcp, OUTPUT_DIR)
             
             # Calculate start-to-end rotations using corrected angle data
             rotations = calculate_start_to_end_rotation_from_angles(all_angles, bcp)
             if rotations:
                 all_rotations[bcp] = rotations
+            
+            # Calculate NEW ANALYSIS: maximum rotation ranges
+            max_rotations = calculate_maximum_rotations(all_angles[bcp], bcp)
+            if max_rotations:
+                all_max_rotations[bcp] = max_rotations
     
     # Print summary (now with corrected data)
     if all_rotations:
         print_rotation_summary(all_rotations)
     
+    # Print NEW ANALYSIS: maximum rotation ranges
+    if all_max_rotations:
+        print_maximum_rotation_summary(all_max_rotations)
+    
     # Save angle data to CSV
     if all_angles:
         save_rotation_data_to_csv(all_angles, OUTPUT_DIR)
+    
+    # Save summary data to CSV
+    if all_rotations and all_max_rotations:
+        save_summary_data_to_csv(all_rotations, all_max_rotations, OUTPUT_DIR)
+    
+    # Save complete analysis output to text file
+    save_analysis_output_to_file(all_rotations, all_max_rotations, OUTPUT_DIR)
     
     print("\n" + "="*80)
     print("ANALYSIS COMPLETE")

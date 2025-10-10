@@ -8,21 +8,29 @@ This tool analyzes how the eigenvectors of the Hessian matrix at bond critical p
 
 ## Features
 
-### Core Capabilities
-- **Eigenvector Rotation Analysis**: Calculate rotation angles of BCP eigenvectors throughout reaction pathways
-- **Multi-Density Support**: Analyze Total Density, Density A (spin-up), and Density B (spin-down) consistently
-- **Multiple Calculation Types**: Handle different electronic field configurations (EEF) simultaneously
-- **Automated Continuity Correction**: Detect and fix eigenvector discontinuities using comprehensive 4-way checking
+### Comprehensive Eigenvector Tracking
+- **4-way continuity checking**: Detects and corrects sign flips, swaps, and combinations
+- **Cross-density consistency**: Maintains physical continuity across Total, A, and B densities
+- **Robust correction algorithm**: Handles complex eigenvalue crossings and discontinuities
 
-### Advanced Algorithms
-- **Physical Eigenvector Tracking**: Follow the same physical eigenvectors through eigenvalue crossings
-- **Comprehensive Continuity Detection**: 4-way algorithm checks for:
-  1. No change (original assignment)
-  2. Sign flip (180° eigenvector rotation)
-  3. Eigenvector swap (EV1 ↔ EV2)
-  4. Combined swap and sign flip
-- **Cross-Density Consistency**: Maintains physical relationships between density components
-- **Real-time Correction**: Applies corrections before visualization and analysis
+### Multiple Analysis Types
+- **Standard rotation plots**: Eigenvector angles vs. reaction coordinate  
+- **Enhanced rotation rate analysis**: Velocity of rotation between consecutive images
+- **Maximum rotation range calculations**: Full extent of eigenvector motion
+- **Cross-calculation comparisons**: Compare different electric field conditions
+- **Intermediate motion analysis**: Quantifies dynamics beyond net rotation
+
+### Visualization Suite
+- **Individual calculation plots**: Separate analysis for each field condition
+- **Cross-density visualization**: Compare Total, A, and B density behaviors
+- **Rotation rate plots**: Show dynamic changes throughout reaction
+- **Publication-ready figures**: High-quality PNG output with clear labeling
+
+### Complete Data Output
+- **Detailed CSV files**: Full time-series data with relative angle changes
+- **Summary CSV files**: Statistical analysis with start-to-end and maximum rotations
+- **Timestamped text reports**: Comprehensive analysis with scientific interpretation
+- **Multiple output formats**: Ready for further analysis and publication
 
 ## Installation
 
@@ -89,12 +97,48 @@ OUTPUT_DIR = Path("bcp_rotation_plots")
 The tool generates several types of plots:
 - **Individual EV1/EV2 plots** for each calculation type
 - **EV3 comparison plots** across all calculation types
+- **Relative rotation rate plots** showing angular velocity between consecutive images (one per density per calculation type)
 - **Separate density type visualizations** for detailed analysis
 
 ### Data Files
-- **CSV angle data**: Complete angle measurements throughout the reaction
-- **Rotation summary**: Start-to-end rotation values for all eigenvectors
-- **Corrected datasets**: Data after comprehensive continuity correction
+
+#### Detailed Time-Series Data
+- **`{BCP}_angles.csv`**: Complete trajectory analysis
+  - `Angle_to_Reference_deg`: Absolute rotation from initial reference
+  - `Relative_Angle_deg`: Frame-to-frame rotation changes
+  - Full time-series for all 25 NEB images
+  - All eigenvectors, densities, and calculation types
+
+#### Statistical Summary Data  
+- **`{BCP}_summary.csv`**: Condensed quantitative analysis
+  - `Start_to_End_Rotation_deg`: Net rotation from start to finish
+  - `Maximum_Range_deg`: Largest angle span during reaction
+  - `Intermediate_Motion_deg`: Extra motion beyond net change
+  - One row per eigenvector/density/calculation combination
+
+#### Analysis Reports
+- **`bcp_analysis_output_{timestamp}.txt`**: Complete interpretation
+  - Detailed rotation summaries with scientific insights
+  - Maximum range analysis and interpretations
+  - Key findings and mechanistic implications
+
+#### Complete Output Structure
+```
+bcp_rotation_plots/
+├── Fe1_N44_angles.csv                        # Detailed time-series data
+├── Fe1_N44_summary.csv                       # Statistical summaries  
+├── bcp_analysis_output_20251009_111202.txt   # Comprehensive reports
+├── Fe1_N44_noEEF_EV1_EV2.png                 # Standard rotation plots
+├── Fe1_N44_origEEF_EV1_EV2.png               # (one per calculation)
+├── Fe1_N44_revEEF_EV1_EV2.png                # 
+├── Fe1_N44_EV3_all_calcs.png                 # EV3 comparison across methods
+├── Fe1_N44_noEEF_Total_Density_rotation_rates.png    # Rotation rate analysis
+├── Fe1_N44_noEEF_Density_A_rotation_rates.png        # (9 plots total:
+├── Fe1_N44_noEEF_Density_B_rotation_rates.png        #  3 calc × 3 density)
+├── Fe1_N44_origEEF_Total_Density_rotation_rates.png  # 
+├── ... (additional rate plots)                        #
+└── Fe1_N44_revEEF_Density_B_rotation_rates.png      # 
+```
 
 ### Console Output
 ```
@@ -124,6 +168,22 @@ Calculation     Eigenvector     Density              Rotation (deg)
 origEEF         EV1             Total Density                  3.20°
 origEEF         EV1             Density A                      2.27°
 origEEF         EV1             Density B                     35.17°
+...
+
+================================================================================
+MAXIMUM EIGENVECTOR ROTATION RANGES
+================================================================================
+
+Fe1-N44:
+--------------------------------------------------------------------------------
+Calculation  Eigenvector  Density              Max Range (deg)
+--------------------------------------------------------------------------------
+origEEF      EV1          Total Density                21.19°
+origEEF      EV1          Density A                     9.19°
+origEEF      EV1          Density B                    39.80°
+origEEF      EV2          Total Density                21.09°
+origEEF      EV2          Density A                     8.77°
+origEEF      EV2          Density B                    19.66°
 ...
 ```
 
@@ -176,10 +236,34 @@ Compare eigenvector rotations under different conditions:
 - **noEEF**: No external electric field
 
 ### Example Results
-For the Fe1-N44 bond in a heme-propane reaction system:
+
+#### Fe1-N44 Bond Critical Point Analysis
+
+**Net Rotations (Start-to-End):**
 - **origEEF**: Minimal rotation (~3°) in Total/A densities, significant rotation (~35°) in B density
-- **revEEF/noEEF**: Consistent small rotations (~10-13°) across all densities
-- **Physical interpretation**: External electric fields primarily affect spin-density components
+- **revEEF**: Substantial rotation (~13°) across all densities  
+- **noEEF**: Moderate rotation (~12°) with consistent behavior across densities
+
+**Maximum Rotation Ranges:**
+- **origEEF Total Density**: 21.2° range despite only 3.2° net rotation → significant intermediate motion
+- **origEEF B Density**: 39.8° range with 35.2° net rotation → complex dynamics with large final displacement
+- **All configurations**: EV3 shows minimal rotation (bond axis direction preserved)
+
+**Key Scientific Insights:**
+- **Hidden dynamics**: Large intermediate motion even when net rotation is small
+- **Field sensitivity**: External electric fields dramatically alter eigenvector behavior  
+- **Density dependence**: A and B densities can show very different rotation patterns
+
+#### Intermediate Motion Discovery
+The analysis revealed a crucial distinction between **net rotation** and **maximum rotation range**:
+
+| Analysis Type | origEEF Example | Scientific Interpretation |
+|---------------|----------------|---------------------------|
+| **Net Rotation** | 3.2° (Total Density) | Final orientation change |
+| **Max Range** | 21.2° (Total Density) | Full motion during reaction |
+| **Intermediate Motion** | 18.0° | Hidden dynamics that return to near-start |
+
+**Scientific Significance**: This discovery shows that traditional start-to-end QTAIM analysis misses substantial intermediate eigenvector dynamics, revealing complex field-induced reorganization invisible in conventional approaches.
 
 ## Technical Implementation
 
@@ -187,7 +271,12 @@ For the Fe1-N44 bond in a heme-propane reaction system:
 - `calculate_angles_for_bcp()`: Extract and process eigenvector data
 - `apply_comprehensive_eigenvector_correction()`: 4-way continuity checking
 - `track_physical_eigenvectors_across_densities()`: Cross-density consistency
-- `plot_eigenvector_rotation()`: Generate visualizations
+- `plot_eigenvector_rotation()`: Generate standard rotation visualizations
+- `plot_relative_rotation_rates()`: Create rotation velocity analysis plots
+- `calculate_maximum_rotations()`: Determine full rotation ranges
+- `save_rotation_data_to_csv()`: Export detailed time-series data with relative angles  
+- `save_summary_data_to_csv()`: Export statistical summaries with intermediate motion analysis
+- `save_analysis_output_to_file()`: Generate comprehensive text reports
 
 ### Performance Considerations
 - **Memory efficient**: Processes data in chunks by BCP and calculation type
@@ -208,15 +297,6 @@ The tool includes extensive validation:
 - **Cross-density verification**: Checks density sum relationships
 - **Physical constraints**: Ensures eigenvector orthonormality
 
-## Citation
-
-If you use this tool in scientific publications, please cite:
-```
-Bond Critical Point Eigenvector Rotation Analysis Tool
-Developed for QTAIM analysis of chemical reaction pathways
-https://github.com/MolecularTheoryGroup/AMSPython
-```
-
 ## Development History
 
 This tool was developed to address the complex challenges of eigenvector continuity in quantum chemical calculations. Key development phases:
@@ -227,14 +307,6 @@ This tool was developed to address the complex challenges of eigenvector continu
 4. **Comprehensive Correction**: 4-way algorithm for all discontinuity types
 5. **Pipeline Integration**: Real-time correction before visualization
 
-## Contributing
-
-Contributions are welcome! Please focus on:
-- **Algorithm improvements**: Enhanced continuity detection methods
-- **Performance optimization**: Faster processing for large datasets
-- **Visualization enhancements**: Better plotting and analysis tools
-- **Documentation**: Examples and use cases
-
 ## License
 
 This project is part of the Molecular Theory Group's computational chemistry tools.
@@ -244,4 +316,25 @@ For usage permissions and licensing, contact the development team.
 
 **Author**: Molecular Theory Group  
 **Last Updated**: October 2025  
-**Version**: 1.0 - Comprehensive Eigenvector Continuity Analysis
+## Version History
+
+### Version 2.0 - Complete Analysis Suite (October 2025)
+
+**Major Enhancements:**
+- **Dual CSV Output System**: Detailed time-series data + statistical summaries
+- **Relative Angle Analysis**: Frame-to-frame rotation dynamics 
+- **Intermediate Motion Quantification**: Hidden dynamics beyond net rotation
+- **Comprehensive Text Reports**: Timestamped scientific documentation
+- **Enhanced Visualizations**: Rotation rate plots for dynamic analysis
+
+**Technical Improvements:**
+- 4-way eigenvector continuity checking (swap + sign flip detection)
+- Cross-density consistency algorithms
+- Real-time correction pipeline integration
+- Publication-ready output formats
+
+### Version 1.0 - Core Implementation
+- Basic eigenvector rotation tracking
+- Standard visualization plots
+- CSV data export
+- Initial continuity correction algorithms
