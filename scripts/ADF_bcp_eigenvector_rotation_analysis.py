@@ -33,7 +33,7 @@ plt.rcParams['font.size'] = 11
 
 # Define bond critical points to analyze (atom pairs)
 BOND_CRITICAL_POINTS = [
-    "Fe1-N44",
+    "Fe1-S43",
     # "H77-O38",
     # Add more BCPs as needed
 ]
@@ -1205,9 +1205,10 @@ def plot_eigenvector_rotation(angles_data: Dict, bcp: str, output_dir: Path):
     fig, ax = plt.subplots(figsize=(12, 8))
     
     # Plot EV3 for all calculation types and densities
-    calc_colors = {'His_propane_NEB_NF_origEEF': 'red', 
-                   'His_propane_NEB_NF_revEEF': 'orange', 
-                   'His_propane_NEB_NF_noEEF': 'blue'}
+    # Use short calc names for color mapping (more flexible)
+    calc_colors = {'origEEF': 'red', 
+                   'revEEF': 'orange', 
+                   'noEEF': 'blue'}
     
     for calc_type in calc_types:
         if 'EV3' not in angles_data[calc_type]:
@@ -1232,7 +1233,7 @@ def plot_eigenvector_rotation(angles_data: Dict, bcp: str, output_dir: Path):
             
             # Plot EV3
             ax.plot(image_nums, angles,
-                   color=calc_colors.get(calc_type, 'black'),
+                   color=calc_colors.get(calc_short, 'black'),  # Use calc_short instead of calc_type
                    linestyle=density_styles[density],
                    marker=density_markers[density],
                    linewidth=2.5 if density == '' else 2.0,
@@ -1636,6 +1637,11 @@ def main(csv_file: str):
     print("BOND CRITICAL POINT EIGENVECTOR ROTATION ANALYSIS")
     print("="*80 + "\n")
     
+    global OUTPUT_DIR
+    # append csv file name (no extension) to output dir as another dir
+    base_name = Path(csv_file).stem
+    OUTPUT_DIR = OUTPUT_DIR / base_name
+    
     # Load data
     df = load_and_process_data(csv_file)
     
@@ -1708,9 +1714,7 @@ def main(csv_file: str):
 
 if __name__ == "__main__":
     # Path to your CSV file
-    CSV_FILE = "His_propane_NEB_NF_cp_info_full.csv"  # Full dataset
-    # CSV_FILE = "His_propane_NEB_NF_cp_info.csv"  # Sample data (2 rows)
-    # CSV_FILE = "test_bcp_data.csv"  # Test data with full NEB path (50 rows)
+    CSV_FILE = "Cys_propane_NEB_NF_cp_info.csv"  # Full dataset
     
     # Run analysis
     main(CSV_FILE)
