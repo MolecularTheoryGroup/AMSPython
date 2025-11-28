@@ -17,3 +17,5 @@ data/*
 
 bcp_rotation_plots*
 *.csv
+
+.venv
