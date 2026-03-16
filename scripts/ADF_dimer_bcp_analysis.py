@@ -19,14 +19,22 @@ import matplotlib.pyplot as plt
 class DimerBCPAnalyzer:
     """Analyzes bond critical point data for dimers from ADF calculations."""
     
-    def __init__(self, output_dir: str = "."):
+    def __init__(self, input_dir: str, output_dir: Optional[str] = None):
         """
         Initialize the analyzer.
         
         Args:
-            output_dir: Directory for output CSV and plots
+            input_dir: Input directory containing ADF calculation results
+            output_dir: Directory for output CSV and plots. If None, uses input_dir.
         """
-        self.output_dir = Path(output_dir)
+        self.input_dir = Path(input_dir)
+        self.input_dir_name = self.input_dir.name
+        
+        if output_dir is None:
+            self.output_dir = self.input_dir
+        else:
+            self.output_dir = Path(output_dir)
+        
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.results = []
     
@@ -239,7 +247,7 @@ class DimerBCPAnalyzer:
         rkf_path = str(rkf_path)
         
         # Get job name from directory name (remove .results suffix if present)
-        job_name = os.path.basename(os.path.dirname(rkf_path))
+        job_name = os.path.basename(os.path.dirname(rkf_path)).replace(".results","")
         
         print(f"Analyzing {job_name}...", end=" ")
         
@@ -333,20 +341,17 @@ class DimerBCPAnalyzer:
             if result:
                 self.results.append(result)
     
-    def write_csv(self, output_file: Optional[str] = None) -> str:
+    def write_csv(self) -> str:
         """
         Write analysis results to CSV file.
         
-        Args:
-            output_file: Output CSV filename. If None, uses default.
-            
+        The CSV filename is constructed from the input directory name:
+        {input_dir_name}_dimer_bcp_analysis.csv
+        
         Returns:
             Path to the output CSV file
         """
-        if output_file is None:
-            output_file = str(self.output_dir / "dimer_bcp_analysis.csv")
-        else:
-            output_file = str(Path(output_file))
+        output_file = str(self.output_dir / f"{self.input_dir_name}_dimer_bcp_analysis.csv")
         
         if not self.results:
             print("No results to write!")
@@ -374,17 +379,21 @@ class DimerBCPAnalyzer:
         print(f"\nResults written to {output_file}")
         return output_file
     
-    def create_plots(self, output_prefix: Optional[str] = None) -> Tuple[str, str]:
+    def create_plots(self, dual_axes: bool = False) -> Tuple[str, str]:
         """
         Create plots for the analysis results.
         
         Creates:
-        1. A plot with dual y-axes showing bond energy and rhoTan vs separation distance
+        1. A plot showing bond energy and rhoTan vs separation distance (single or dual y-axes)
         2. A plot showing eigenvalues vs separation distance
         
+        The plot filenames are constructed from the input directory name:
+        {input_dir_name}_dimer_bcp_analysis_energy_vs_separation.png
+        {input_dir_name}_dimer_bcp_analysis_eigenvalues_vs_separation.png
+        
         Args:
-            output_prefix: Prefix for output plot files. If None, uses default.
-            
+            dual_axes: If True, use separate y-axes for energy and rhoTan. Default: False
+        
         Returns:
             Tuple of (plot1_path, plot2_path)
         """
@@ -392,38 +401,49 @@ class DimerBCPAnalyzer:
             print("No results to plot!")
             return "", ""
         
-        if output_prefix is None:
-            output_prefix = str(self.output_dir / "dimer_bcp_analysis")
+        output_prefix = str(self.output_dir / f"{self.input_dir_name}_dimer_bcp_analysis")
         
         # Sort results by separation for plotting
         sorted_results = sorted(self.results, key=lambda x: x['separation'])
         
         separations = [r['separation'] for r in sorted_results]
-        energies = [r['energy'] for r in sorted_results]
+        energies = [-r['energy'] for r in sorted_results]
         rho_tans = [r['rho_tan'] if r['rho_tan'] is not None else 0 for r in sorted_results]
         lambda_negs = [r['lambda_neg'] for r in sorted_results]
         lambda_poss = [r['lambda_pos'] for r in sorted_results]
         
-        # Plot 1: Energy and rhoTan vs Separation (dual y-axes)
+        # Plot 1: Energy and rhoTan vs Separation
         fig, ax1 = plt.subplots(figsize=(10, 6))
         
-        color = 'tab:blue'
         ax1.set_xlabel('Separation Distance (bohr)')
-        ax1.set_ylabel('Bond Energy (Hartree)', color=color)
-        line1 = ax1.plot(separations, energies, 'o-', color=color, label='Bond Energy')
-        ax1.tick_params(axis='y', labelcolor=color)
-        ax1.grid(True, alpha=0.3)
         
-        ax2 = ax1.twinx()
-        color = 'tab:red'
-        ax2.set_ylabel('ρTan (rho_bcp * sqrt(λ+/|λ-|))', color=color)
-        line2 = ax2.plot(separations, rho_tans, 's--', color=color, label='ρTan')
-        ax2.tick_params(axis='y', labelcolor=color)
+        if dual_axes:
+            # Dual y-axes mode
+            color = 'tab:blue'
+            ax1.set_ylabel('|Bond Energy| (Hartree)', color=color)
+            line1 = ax1.plot(separations, energies, 'o-', color=color, label='|Bond Energy|')
+            ax1.tick_params(axis='y', labelcolor=color)
+            ax1.grid(True, alpha=0.3)
+            
+            ax2 = ax1.twinx()
+            color = 'tab:red'
+            ax2.set_ylabel(r'$\rho\tan$ = $\rho(\mathbf{r}_{\text{BCP}}) \sqrt{\frac{\lambda_+}{|\lambda_-|}}$', color=color)
+            line2 = ax2.plot(separations, rho_tans, 's--', color=color, label=r'$\rho_{\text{Tan}}$')
+            ax2.tick_params(axis='y', labelcolor=color)
+            
+            # Combine legends
+            lines = line1 + line2
+            labels = [str(l.get_label()) for l in lines]
+            ax1.legend(lines, labels, loc='upper left')
+        else:
+            # Single y-axis mode
+            ax1.set_ylabel(r'|Bond Energy| (Hartree), $\rho\tan$')
+            ax1.plot(separations, energies, 'o-', color='tab:blue', label='|Bond Energy|')
+            ax1.plot(separations, rho_tans, 's--', color='tab:red', label=r'$\rho\tan$ = $\rho(\mathbf{r}_{\text{BCP}}) \sqrt{\frac{\lambda_+}{|\lambda_-|}}$')
+            ax1.grid(True, alpha=0.3)
+            ax1.legend(loc='best')
         
-        # Combine legends
-        lines = line1 + line2
-        labels = [str(l.get_label()) for l in lines]
-        ax1.legend(lines, labels, loc='upper left')
+        ax1.set_title(f'{self.input_dir_name} - |Bond Energy| and $\\rho\\tan$ vs Separation')
         
         fig.tight_layout()
         plot1_path = f"{output_prefix}_energy_vs_separation.png"
@@ -434,13 +454,13 @@ class DimerBCPAnalyzer:
         # Plot 2: Eigenvalues vs Separation
         fig, ax = plt.subplots(figsize=(10, 6))
         
-        ax.plot(separations, lambda_negs, 'o-', color='tab:blue', label='λ- (negative eigenvalue)')
-        ax.plot(separations, lambda_poss, 's-', color='tab:red', label='λ+ (positive eigenvalue)')
+        ax.plot(separations, lambda_negs, 'o-', color='tab:blue', label=r'$\lambda_-$ (negative eigenvalue)')
+        ax.plot(separations, lambda_poss, 's-', color='tab:red', label=r'$\lambda_+$ (positive eigenvalue)')
         ax.axhline(y=0, color='black', linestyle='--', alpha=0.5)
         
         ax.set_xlabel('Separation Distance (bohr)')
         ax.set_ylabel('Eigenvalue')
-        ax.set_title('BCP Hessian Eigenvalues vs Separation Distance')
+        ax.set_title(f'{self.input_dir_name} - BCP Hessian Eigenvalues vs Separation Distance')
         ax.legend()
         ax.grid(True, alpha=0.3)
         
@@ -465,29 +485,29 @@ def main():
         help="Directory containing ADF calculation results"
     )
     parser.add_argument(
-        "-o", "--output",
-        default=None,
-        help="Output CSV file (default: ./dimer_bcp_analysis.csv)"
-    )
-    parser.add_argument(
         "-d", "--output-dir",
-        default=".",
-        help="Output directory (default: current directory)"
+        default=None,
+        help="Output directory for CSV and plots (default: input_dir)"
     )
     parser.add_argument(
         "--plots",
         action="store_true",
         help="Generate plots (default: False)"
     )
+    parser.add_argument(
+        "--dual-axes",
+        action="store_true",
+        help="Use separate y-axes for energy and rhoTan in plots (default: False)"
+    )
     
     args = parser.parse_args()
     
-    analyzer = DimerBCPAnalyzer(output_dir=args.output_dir)
+    analyzer = DimerBCPAnalyzer(input_dir=args.input_dir, output_dir=args.output_dir)
     analyzer.walk_directory(args.input_dir)
-    analyzer.write_csv(args.output)
+    analyzer.write_csv()
     
     if args.plots:
-        analyzer.create_plots()
+        analyzer.create_plots(dual_axes=args.dual_axes)
 
 
 if __name__ == "__main__":

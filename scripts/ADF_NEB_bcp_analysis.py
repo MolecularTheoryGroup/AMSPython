@@ -53,10 +53,20 @@ import warnings  # To warn about potential issues
 #                 '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Field_p01/Full_reaction/Cys_propane_NEB_p01.ams',
 #                 '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/cys/Field_n01/full_reaction/Cys_propane_NEB_n01.ams']
 
+# ams_job_paths = [
+#     '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/v2/cys/n01/Cys_propane_NEB_n01.ams',
+#     '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/v2/cys/p01/Cys_propane_NEB_p01.ams'
+# ]
+
 ams_job_paths = [
-    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/v2/cys/n01/Cys_propane_NEB_n01.ams',
-    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/v2/cys/p01/Cys_propane_NEB_p01.ams'
+    '/Users/twilson/scratch/CP_crossings/PhI-O-DMS_NEBs/PMe3-O-DMS_NEB2.ams'
 ]
+
+xyz_trajectory_file_path = ''
+xyz_trajectory_file_start_image = 0
+xyz_trajectory_file_end_image = -1
+xyz_trajectory_file_initial_final_images_at_end = True
+
 
 # To rerun on a previously processed file, set the restart_dill_path to the path of the dill file in the working directory of the previous run. Otherwise, set to None, False, or ''. Set the csv paths to be an empty list if you want the script to use the dill file input.
 # restart_dill_paths = [
@@ -73,13 +83,9 @@ ams_job_paths = [
 #     '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/his/plams_workdir.002/His_propane_near_TS/His_propane_near_TS.dill',
 # ]
 restart_dill_paths = [
-    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/v2/cys_his_tyr_nf_workdir/Cys_propane_NEB_NF/Cys_propane_NEB_NF.dill',
-    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/v2/cys_his_tyr_nf_workdir/His_propane_NEB_NF/His_propane_NEB_NF.dill',
-    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/v2/cys_his_tyr_nf_workdir/Tyr_propane_NEB_NF/Tyr_propane_NEB_NF.dill',
-    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/v2/cys_plus_minus_workdir.002/Cys_propane_NEB_n01/Cys_propane_NEB_n01.dill',
-    '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/v2/cys_plus_minus_workdir.002/Cys_propane_NEB_p01/Cys_propane_NEB_p01.dill',
+    # '/Users/twilson/scratch/CP_crossings/PhI-O-DMS_NEBs/plams_workdir.007/PMe3-O-DMS_NEB2_p01/PMe3-O-DMS_NEB2_p01.dill'
 ]
-unrestricted_calculation = True
+unrestricted_calculation = False  
 
 # Define paths to previously created cp data CSV files in order to do statistical analysis.
 csv_file_paths = [
@@ -90,7 +96,7 @@ csv_file_paths = [
 
 # You can control the starting and ending NEB image number to include in the analysis here.
 # 0 means the first image in the NEB, 1 means the second image, etc.
-start_image = 0
+start_image = 1
 end_image = -1  # -1 means the last image in the NEB
 
 # Define atom pairs (pairs of atom numbers with associated descriptions) for which to extract bond critical point information.
@@ -127,61 +133,99 @@ atom_pairs_list = (  # one-based indices, same as shown in AMSView
     #     (1, 4): "",  # FeN
     #     (1, 5): "",  # FeN
     # },
-    { # CP450 Heme Cys NF v2 
-        (44, 46): "Breaking bond",  # CH
-        (46, 38): "Forming bond",  # OH
-        (1, 38): "",  # FeO
-        (1, 43): "Fe-Ligand",  # Fe-amino acid Cys
-        (1, 2): "",  # FeN
-        (1, 3): "",  # FeN
-        (1, 4): "",  # FeN
-        (1, 5): "",  # FeN
+    # { # CP450 Heme Cys NF v2 
+    #     (44, 46): "Breaking bond",  # CH
+    #     (46, 38): "Forming bond",  # OH
+    #     (1, 38): "",  # FeO
+    #     (1, 43): "Fe-Ligand",  # Fe-amino acid Cys
+    #     (1, 2): "",  # FeN
+    #     (1, 3): "",  # FeN
+    #     (1, 4): "",  # FeN
+    #     (1, 5): "",  # FeN
+    # },
+    # { # CP450 Heme His NF v2 
+    #     (78, 77): "Breaking bond",  # CH
+    #     (77, 38): "Forming bond",  # OH
+    #     (1, 38): "",  # FeO
+    #     (1, 44): "Fe-Ligand",  # Fe-amino acid Cys
+    #     (1, 2): "",  # FeN
+    #     (1, 3): "",  # FeN
+    #     (1, 4): "",  # FeN
+    #     (1, 5): "",  # FeN
+    # },
+    # { # CP450 Heme Tyr NF v2 
+    #     (55, 54): "Breaking bond",  # CH
+    #     (54, 38): "Forming bond",  # OH
+    #     (1, 38): "",  # FeO
+    #     (1, 40): "Fe-Ligand",  # Fe-amino acid Cys
+    #     (1, 2): "",  # FeN
+    #     (1, 3): "",  # FeN
+    #     (1, 4): "",  # FeN
+    #     (1, 5): "",  # FeN
+    # },
+    #     { # CP450 Heme Tyr NF v3 reduced grad convergence constraints
+    #     (56, 54): "Breaking bond",  # CH
+    #     (56, 53): "Forming bond",  # OH
+    #     (1, 53): "",  # FeO
+    #     (1, 40): "Fe-Ligand",  # Fe-amino acid Cys
+    #     (1, 2): "",  # FeN
+    #     (1, 3): "",  # FeN
+    #     (1, 4): "",  # FeN
+    #     (1, 5): "",  # FeN
+    # },
+    # { # CP450 Heme Tyr NF v3 reduced grad convergence constraints
+    #     (55, 54): "Breaking bond",  # CH
+    #     (54, 53): "Forming bond",  # OH
+    #     (1, 53): "",  # FeO
+    #     (1, 40): "Fe-Ligand",  # Fe-amino acid Cys
+    #     (1, 2): "",  # FeN
+    #     (1, 3): "",  # FeN
+    #     (1, 4): "",  # FeN
+    #     (1, 5): "",  # FeN
+    # },
+    # { # PhI-O-DMS NEB3
+    #     (13,14): "Breaking bond",
+    #     (1, 13): "Forming bond"
+    # },
+    { # PMe3-O-DMS_NEB2_p01.ams
+        (1,10): "Breaking bond",
+        (10, 11): "Forming bond"
     },
-    { # CP450 Heme His NF v2 
-        (78, 77): "Breaking bond",  # CH
-        (77, 38): "Forming bond",  # OH
-        (1, 38): "",  # FeO
-        (1, 44): "Fe-Ligand",  # Fe-amino acid Cys
-        (1, 2): "",  # FeN
-        (1, 3): "",  # FeN
-        (1, 4): "",  # FeN
-        (1, 5): "",  # FeN
-    },
-    { # CP450 Heme Tyr NF v2 
-        (55, 54): "Breaking bond",  # CH
-        (54, 38): "Forming bond",  # OH
-        (1, 38): "",  # FeO
-        (1, 40): "Fe-Ligand",  # Fe-amino acid Cys
-        (1, 2): "",  # FeN
-        (1, 3): "",  # FeN
-        (1, 4): "",  # FeN
-        (1, 5): "",  # FeN
-    },
-    { # CP450 Heme Cys n01 v2 
-        (45, 44): "Breaking bond",  # CH
-        (44, 38): "Forming bond",  # OH
-        (1, 38): "",  # FeO
-        (1, 43): "Fe-Ligand",  # Fe-amino acid Cys
-        (1, 2): "",  # FeN
-        (1, 3): "",  # FeN
-        (1, 4): "",  # FeN
-        (1, 5): "",  # FeN
-    },
-    { # CP450 Heme Cys p01 v2 
-        (45, 44): "Breaking bond",  # CH
-        (44, 38): "Forming bond",  # OH
-        (1, 38): "",  # FeO
-        (1, 43): "Fe-Ligand",  # Fe-amino acid Cys
-        (1, 2): "",  # FeN
-        (1, 3): "",  # FeN
-        (1, 4): "",  # FeN
-        (1, 5): "",  # FeN
-    },
+    # { # CP450 Heme Cys n01 v2 
+    #     (45, 44): "Breaking bond",  # CH
+    #     (44, 38): "Forming bond",  # OH
+    #     (1, 38): "",  # FeO
+    #     (1, 43): "Fe-Ligand",  # Fe-amino acid Cys
+    #     (1, 2): "",  # FeN
+    #     (1, 3): "",  # FeN
+    #     (1, 4): "",  # FeN
+    #     (1, 5): "",  # FeN
+    # },
+    # { # CP450 Heme Cys p01 v2 
+    #     (45, 44): "Breaking bond",  # CH
+    #     (44, 38): "Forming bond",  # OH
+    #     (1, 38): "",  # FeO
+    #     (1, 43): "Fe-Ligand",  # Fe-amino acid Cys
+    #     (1, 2): "",  # FeN
+    #     (1, 3): "",  # FeN
+    #     (1, 4): "",  # FeN
+    #     (1, 5): "",  # FeN
+    # },
     # { # CP450 Heme Tyr
     #     (40, 47): "Breaking bond",  # CH
     #     (47, 39): "Forming bond",  # OH
     #     (1, 39): "",  # FeO
     #     (1, 50): "Fe-Ligand",  # Fe-amino acid Tyr
+    #     (1, 2): "",  # FeN
+    #     (1, 3): "",  # FeN
+    #     (1, 4): "",  # FeN
+    #     (1, 5): "",  # FeN
+    # },
+    # { # CP450 Heme Tyr v2
+    #     (55, 58): "Breaking bond",  # CH
+    #     (38, 58): "Forming bond",  # OH
+    #     (1, 38): "",  # FeO
+    #     (1, 40): "Fe-Ligand",  # Fe-amino acid Tyr
     #     (1, 2): "",  # FeN
     #     (1, 3): "",  # FeN
     #     (1, 4): "",  # FeN
@@ -197,7 +241,8 @@ atom_pair_for_bond_distance_printout = None #(46, 38)
 # This is useful if Bondalyzer is to be used.
 # Configure the full grid settings below.
 # If no full grid is desired, leave densf_bb_atom_numbers as an empty list.
-densf_bb_atom_numbers = []
+# densf_bb_atom_numbers = [1,2,3,4,5,40,53,56,54] # list of atom numbers (1-based) to use for bounding box definition
+densf_bb_atom_numbers = [] # list of atom numbers (1-based) to use for bounding box definition
 densf_bb_padding = 5.0  # Angstroms
 densf_bb_spacing = (
     0.05  # Angstroms (densf "fine" is 0.05, "medium" is 0.1, "coarse" is 0.2)
@@ -218,8 +263,8 @@ user_eef = (0.0, 0.0, 0.01)
 # new jobs they need to be V/Angstrom. The conversion factor is 51.4220861908324.
 eef_conversion_factor = 51.4220861908324
 # Define the EEF pairs
-# eef_pairs = [("origEEF", eef_conversion_factor), ("revEEF", -eef_conversion_factor), ("noEEF", 0)]
-eef_pairs = [("origEEF", eef_conversion_factor)]
+eef_pairs = [("origEEF", eef_conversion_factor), ("revEEF", -eef_conversion_factor), ("noEEF", 0)]
+# eef_pairs = [("origEEF", eef_conversion_factor)]
 ##### end EEF Settings #####
 
 ##### Extra interpolated single point settings #####
@@ -230,7 +275,7 @@ num_extra_images = 3
 # This then determines how many images to the left/right of the TS image to create. `num_extra_images` images will be created between each adjacent pair of images.
 # So "1" will result in `num_extra_images` images being added only between the TS image and its adjacent images,
 # while "3" will add `num_extra_images` between each image pair starting 3 images before the TS, etc.
-extra_images_num_adjacent_images = 2
+extra_images_num_adjacent_images = 0
 # Set `num_extra_images` to 0 to disable this feature.
 ##### end Extra interpolated single point settings #####
 
@@ -241,7 +286,7 @@ smooth_derivatives = True
 # in addition to any of the properties that appear as column headings in the output CSV file,
 # you may specify the following properties to plot as x or y axis values:
 #
-# "NEB image"         (i.e. the image number) which will likely be changed by the nubmer of extra images added)
+# "NEB image"         (i.e. the image number) which will likely be changed by the number of extra images added)
 # "<atom1>-<atom2> distance"    for each atom pair defined above, including its symbol, e.g. "C40-H47 distance" for the CH bond
 # "Molecular bond energy"       the total energy of the molecule
 
@@ -264,42 +309,26 @@ combined_plots_y_prop_lists = {
     "Rho d/dx": ["Molecular bond energy", "Rho d/dx"],
     "Rho d/dx (smoothed)": ["Molecular bond energy", "Rho d/dx (smoothed)"],
     "Angles": ["Molecular bond energy", "Theta", "Phi"],
-    "Angles overlay": ["Molecular bond energy", ["Theta", "Phi"]],
+    # "Angles overlay": ["Molecular bond energy", ["Theta", "Phi"]],
     "Angles d/dx": ["Molecular bond energy", "Theta d/dx", "Phi d/dx"],
-    "Angles overlay d/dx": ["Molecular bond energy", ["Theta d/dx", "Phi d/dx"]],
+    # "Angles overlay d/dx": ["Molecular bond energy", ["Theta d/dx", "Phi d/dx"]],
     "Angles d/dx (smoothed)": ["Molecular bond energy", "Theta d/dx (smoothed)", "Phi d/dx (smoothed)"],
-    "Angles overlay d/dx (smoothed)": ["Molecular bond energy", ["Theta d/dx (smoothed)", "Phi d/dx (smoothed)"]],
+    # "Angles overlay d/dx (smoothed)": ["Molecular bond energy", ["Theta d/dx (smoothed)", "Phi d/dx (smoothed)"]],
 }
 
 # Specify properties to be used as the x axis (independent variable) for the plots.
 # For each x-axis property specified, a full set of plots will be generated for each y property.
 # (Add " (reverse)" to reverse the x-axis direction)
 plot_x_prop_list = [
-    "H46-O38 distance (reverse)",
+    "O13-S14 distance",
     "NEB image",
 ]
 
 plot_x_prop_lists = [
     [
-        "H46-O38 distance (reverse)",
+        "S1-O10 distance",
         "NEB image",
-    ],
-    [
-        "H77-O38 distance (reverse)",
-        "NEB image",
-    ],
-    [
-        "H54-O38 distance (reverse)",
-        "NEB image",
-    ],
-    [
-        "H44-O38 distance (reverse)",
-        "NEB image",
-    ],
-    [
-        "H44-O38 distance (reverse)",
-        "NEB image",
-    ],
+    ]
 ]
 ##### end Plot settings #####
 
@@ -310,7 +339,7 @@ plot_x_prop_lists = [
 # These parameters control that process.
 # Number of check points in each dimension. Increasing this value will result in a better approximation of
 # The spin A/B CP locations, but will increase densf runtime.
-num_check_points = 15
+num_check_points = 25
 # Fraction of the distance between the two atoms. Increasing this value will result in a search being
 # done over a larger region around the total-density CP location, and will increase the spacing between
 # the check points. If too small, the search grid may not include the true spin A/B CP locations.
@@ -364,11 +393,252 @@ reduced_csv_rename_key_map = {
 num_check_points_total = num_check_points**3
 
 # Get the number of CPU cores
-num_cores = ceil(os.cpu_count() / 2)
+num_cores = 8 #ceil(os.cpu_count() / 2)
 
 ########################################################################################
 # Step 0: define helper functions
 ########################################################################################
+
+atom_symbol_to_number_map = {
+    "H": 1,
+    "He": 2,
+    "Li": 3,
+    "Be": 4,
+    "B": 5,
+    "C": 6,
+    "N": 7,
+    "O": 8,
+    "F": 9,
+    "Ne": 10,
+    "Na": 11,
+    "Mg": 12,
+    "Al": 13,
+    "Si": 14,
+    "P": 15,
+    "S": 16,
+    "Cl": 17,
+    "Ar": 18,
+    "K": 19,
+    "Ca": 20,
+    "Sc": 21,
+    "Ti": 22,
+    "V": 23,
+    "Cr": 24,
+    "Mn": 25,
+    "Fe": 26,
+    "Co": 27,
+    "Ni": 28,
+    "Cu": 29,
+    "Zn": 30,
+    "Ga": 31,
+    "Ge": 32,
+    "As": 33,
+    "Se": 34,
+    "Br": 35,
+    "Kr": 36,
+    "Rb": 37,
+    "Sr": 38,
+    "Y": 39,
+    "Zr": 40,
+    "Nb": 41,
+    "Mo": 42,
+    "Tc": 43,
+    "Ru": 44,
+    "Rh": 45,
+    "Pd": 46,
+    "Ag": 47,
+    "Cd": 48,
+    "In": 49,
+    "Sn": 50,
+    "Sb": 51,
+    "Te": 52,
+    "I": 53,
+    "Xe": 54,
+    "Cs": 55,
+    "Ba": 56,
+    "La": 57,
+    "Ce": 58,
+    "Pr": 59,
+    "Nd": 60,
+    "Pm": 61,
+    "Sm": 62,
+    "Eu": 63,
+    "Gd": 64,
+    "Tb": 65,
+    "Dy": 66,
+    "Ho": 67,
+    "Er": 68,
+    "Tm": 69,
+    "Yb": 70,
+    "Lu": 71,
+    "Hf": 72,
+    "Ta": 73,
+    "W": 74,
+    "Re": 75,
+    "Os": 76,
+    "Ir": 77,
+    "Pt": 78,
+    "Au": 79,
+    "Hg": 80,
+    "Tl": 81,
+    "Pb": 82,
+    "Bi": 83,
+    "Po": 84,
+    "At": 85,
+    "Rn": 86,
+    "Fr": 87,
+    "Ra": 88,
+    "Ac": 89,
+    "Th": 90,
+    "Pa": 91,
+    "U": 92,
+    "Np": 93,
+    "Pu": 94,
+    "Am": 95,
+    "Cm": 96,
+    "Bk": 97,
+    "Cf": 98,
+    "Es": 99,
+    "Fm": 100,
+    "Md": 101,
+    "No": 102,
+    "Lr": 103,
+    "Rf": 104,
+    "Db": 105,
+    "Sg": 106,
+    "Bh": 107,
+    "Hs": 108,
+    "Mt": 109,
+    "Ds": 110,
+    "Rg": 111,
+    "Cn": 112,
+    "Nh": 113,
+    "Fl": 114,
+    "Mc": 115,
+    "Lv": 116,
+    "Ts": 117,
+    "Og": 118
+}
+
+def xyz_trajectory_file_parse_to_molecule_input(image_string):
+    """
+    Parse XYZ format text into molecule input data.
+    
+    Parameters:
+    image_string (str): Multi-line text string containing XYZ file data
+    
+    Returns:
+    tuple: (atom_coords, atom_symbols, atom_numbers) where:
+        - atom_coords: List of (x, y, z) tuples
+        - atom_symbols: 1D list of element symbols
+        - atom_numbers: 1D list of atomic numbers
+    """
+    lines = image_string.strip().split('\n')
+    
+    # First line is number of atoms
+    num_atoms = int(lines[0].strip())
+    
+    # Skip the comment line (line 1) and start from line 2
+    atom_coords = []
+    atom_symbols = []
+    atom_numbers = []
+    
+    for i in range(2, 2 + num_atoms):
+        parts = lines[i].split()
+        symbol = parts[0]
+        x, y, z = float(parts[1]), float(parts[2]), float(parts[3])
+        
+        atom_symbols.append(symbol)
+        atom_coords.append((x, y, z))
+        atom_numbers.append(atom_symbol_to_number_map[symbol])
+    
+    return atom_coords, atom_symbols, atom_numbers
+
+def xyz_trajectory_file_extract_images(path=xyz_trajectory_file_path, i_start=xyz_trajectory_file_start_image, i_end=xyz_trajectory_file_end_image, initial_final_images_at_end=xyz_trajectory_file_initial_final_images_at_end):
+    """
+    Extract images from an XYZ trajectory file.
+    
+    Parameters:
+    path (str): Path to the XYZ trajectory file
+    i_start (int): Starting image index (0-based, relative to trajectory images)
+    i_end (int): Ending image index (-1 means last image, relative to trajectory images)
+    initial_final_images_at_end (bool): If True, the last two images in the file are 
+                                        the initial and final images, which will be 
+                                        placed at the beginning and end of the result
+    
+    Returns:
+    list: List of dictionaries, each containing:
+        - 'atom_coords': 1D list of coordinates
+        - 'atom_symbols': 1D list of element symbols
+        - 'atom_numbers': 1D list of atomic numbers
+    """
+    with open(path, 'r') as f:
+        content = f.read()
+    
+    # Split into lines
+    lines = content.strip().split('\n')
+    
+    if not lines:
+        return []
+    
+    # First line tells us the number of atoms
+    num_atoms = int(lines[0].strip())
+    # Each image has: 1 line (num_atoms) + 1 line (comment) + num_atoms lines (atoms)
+    lines_per_image = num_atoms + 2
+    
+    # Calculate total number of images in file
+    total_images = len(lines) // lines_per_image
+    
+    # Determine trajectory length and special image indices
+    if initial_final_images_at_end:
+        # Last two images are initial and final
+        num_trajectory_images = total_images - 2
+        initial_image_index = total_images - 2
+        final_image_index = total_images - 1
+    else:
+        num_trajectory_images = total_images
+        initial_image_index = None
+        final_image_index = None
+    
+    # Handle negative i_start (relative to trajectory length)
+    if i_start < 0:
+        i_start = max(0, num_trajectory_images + i_start)
+    
+    # Handle negative i_end (relative to trajectory length)
+    if i_end < 0:
+        i_end = num_trajectory_images + i_end
+    
+    # Helper function to extract a single image string by index
+    def extract_image_string(img_index):
+        start_line = img_index * lines_per_image
+        end_line = start_line + lines_per_image
+        return '\n'.join(lines[start_line:end_line])
+    
+    # Extract trajectory images in the specified range
+    image_strings = []
+    for i in range(i_start, i_end + 1):
+        if i >= num_trajectory_images:
+            break
+        image_strings.append(extract_image_string(i))
+    
+    # Prepare final list of image strings
+    if initial_final_images_at_end:
+        # Add initial image at beginning, trajectory in middle, final at end
+        image_strings.insert(0, extract_image_string(initial_image_index))
+        image_strings.append(extract_image_string(final_image_index))
+    
+    # Parse each image and create dictionary
+    result = []
+    for image_string in image_strings:
+        atom_coords, atom_symbols, atom_numbers = xyz_trajectory_file_parse_to_molecule_input(image_string)
+        result.append({
+            'atom_coords': atom_coords,
+            'atom_symbols': atom_symbols,
+            'atom_numbers': atom_numbers
+        })
+    
+    return result
+
 
 
 def compute_bspline_derivative(x, y, num_points=200, k=21, original_x_points=False):
@@ -839,6 +1109,7 @@ def get_bcp_properties(job, atom_pairs_dict, unrestricted=False):
     # get image number from job name, which is present as, for example, 'im001' in the job name
     image_number = int(job.name.split("im")[1])
 
+    print(atom_pairs_dict)
     atom_pairs = list(atom_pairs_dict.keys())
     for pair in atom_pairs:
         a1 = [getattr(out_mol.atoms[pair[0] - 1], d) for d in ["x", "y", "z"]]
@@ -941,15 +1212,21 @@ def get_bcp_properties(job, atom_pairs_dict, unrestricted=False):
         densf_run_file = job.results["adf.rkf"].replace(".rkf", "_densf.run")
         # if out_file exists, check if the nubmer of points is correct. If so,
         # skip the densf run. If not, delete it and make a new one.
+        log_print(f"Preparing to run densf for {job.name} CPs")
+        log_print(f"Checking for existing densf output file at {out_file}")
         densf_kf = None
         if os.path.exists(out_file):
+            log_print(f"Found existing densf output file at {out_file}")
             densf_kf = KFFile(out_file)
             vals = densf_kf[("x values", f"x values")]
             if len(vals) == num_check_points_total * len(cp_indices):
                 log_print(f"Skipping densf run for {job.name} CPs")
             else:
+                log_print(f"Densf output file has incorrect number of points ({len(vals)} instead of {num_check_points_total * len(cp_indices)}). Re-running densf.")
                 os.remove(out_file)
                 densf_kf = None
+        else:
+            log_print(f"No existing densf output file found at {out_file}")
         if densf_kf is None:
             # grid_coords = '\n'.join([f'{cp[0]} {cp[1]} {cp[2]}' for cp in bcp_coords])
             grid_coords = "\n".join(bcp_check_points)
@@ -1090,6 +1367,9 @@ def generate_full_t41(job, output_dir):
     total_num_points = num_points[0] * num_points[1] * num_points[2]
     outfile = os.path.join(output_dir, f"{job.name}_densf_full.t41")
 
+    log_print(f"Generating full density t41 for {job.name} with bounding box: {min_xyz} to {max_xyz}")
+    log_print(f"t41 file: {outfile}")
+
     # If outfile is present and it contains the correct number of points, skip the densf run
     densf_kf = None
     if os.path.exists(outfile):
@@ -1162,6 +1442,19 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
     job_name = os.path.commonprefix(image_names)
     eef_strs = ["origEEF", "revEEF", "noEEF"]
     has_eef = [eef in str(image_names) for eef in eef_strs].count(True) > 1
+    
+    job_name_base = job_name
+            
+    # Append start/end image numbers if xyz trajectory data was used and not all images were included
+    if xyz_trajectory_file_path:
+        if xyz_trajectory_file_start_image != 0 or xyz_trajectory_file_end_image != -1:
+            start_img = xyz_trajectory_file_start_image
+            end_img = xyz_trajectory_file_end_image if xyz_trajectory_file_end_image != -1 else "end"
+            job_name_base += f"_img{start_img}_to_{end_img}"
+            if xyz_trajectory_file_initial_final_images_at_end:
+                job_name_base += "_with_init_final_at_end"
+            else:
+                job_name_base += "_no_init_final_at_end"
 
     reverse_x_axis = [" (reverse)" in x_prop for x_prop in x_prop_list]
     x_prop_list = [
@@ -1300,7 +1593,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                 squeeze=False # Always return 2D array for axs
             )
             fig.suptitle(
-                f"{job_name}: Combined plots for {x_prop_label} ({plot_name})",
+                f"{job_name_base}: Combined plots for {x_prop_label} ({plot_name})",
                 fontsize=16,
                 y=1.00, # Adjusted y to prevent overlap with tight_layout
             )
@@ -1604,8 +1897,9 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
             # top_padding = min(0.995, 0.9 + 0.02 * len(current_expanded_y_prop_list)) # Original
             # plt.subplots_adjust(top=top_padding, hspace=0.4) # Added hspace
             # tight_layout often handles this better. If suptitle overlaps, adjust its y or use fig.subplots_adjust.
+                    
             
-            f_base = f"{job_name}combined_{x_prop.replace(' ', '_')}_{plot_name.replace(' ', '_')}.png".replace("/", "-")
+            f_base = f"{job_name_base}combined_{x_prop.replace(' ', '_')}_{plot_name.replace(' ', '_')}.png".replace("/", "-")
             plt.savefig(os.path.join(out_dir, f_base), dpi=300, bbox_inches="tight")
             plt.close(fig) # Close the figure explicitly
 
@@ -1620,7 +1914,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                 log_print(f"Plotting {y_prop}{eef} vs {x_prop} for bond CPs")
                 fig, ax = plt.subplots()
                 ax.set_title(
-                    f"{job_name}: {y_prop}{eef} vs {x_prop} for bond CPs", fontsize=9
+                    f"{job_name_base}: {y_prop}{eef} vs {x_prop} for bond CPs", fontsize=9
                 )
                 ax.set_xlabel(x_prop)
                 ax.set_ylabel(y_prop)
@@ -1652,7 +1946,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                     plt.tight_layout()
                     plt.savefig(
                         os.path.join(
-                            out_dir, f"{job_name}{y_prop}{eef}_vs_{x_prop}.png"
+                            out_dir, f"{job_name_base}{y_prop}{eef}_vs_{x_prop}.png"
                         )
                     )
                     plt.close()
@@ -1663,7 +1957,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                     f"Plotting {y_prop} vs {x_prop} for bond CPs (All EEF)")
                 fig, ax = plt.subplots()
                 ax.set_title(
-                    f"{job_name}: {y_prop} vs {x_prop} for bond CPs (All EEF)",
+                    f"{job_name_base}: {y_prop} vs {x_prop} for bond CPs (All EEF)",
                     fontsize=9,
                 )
                 ax.set_xlabel(x_prop)
@@ -1701,7 +1995,7 @@ def generate_plots(cp_data, prop_list, x_prop_list, out_dir, combined_y_prop_lis
                     ax.grid(True)
                     plt.savefig(
                         os.path.join(
-                            out_dir, f"{job_name}{y_prop}_vs_{x_prop}_all_eef.png"
+                            out_dir, f"{job_name_base}{y_prop}_vs_{x_prop}_all_eef.png"
                         )
                     )
                     plt.close()
@@ -1790,6 +2084,18 @@ def write_csv(cp_data, input_file_path, include_keys=None, rename_key_map=None):
 
     # Define the output CSV file path
     base_name = os.path.splitext(input_file_path)[0]
+    
+    # Append start/end image numbers if xyz trajectory data was used and not all images were included
+    if xyz_trajectory_file_path:
+        if xyz_trajectory_file_start_image != 0 or xyz_trajectory_file_end_image != -1:
+            start_img = xyz_trajectory_file_start_image
+            end_img = xyz_trajectory_file_end_image if xyz_trajectory_file_end_image != -1 else "end"
+            base_name += f"_img{start_img}_to_{end_img}"
+            if xyz_trajectory_file_initial_final_images_at_end:
+                base_name += "_with_init_final_at_end"
+            else:
+                base_name += "_no_init_final_at_end"
+    
     suffix = "_reduced" if include_keys is not None else ""
     csv_file_path = f"{base_name}_cp_info{suffix}.csv"
 
@@ -1958,6 +2264,14 @@ def main(ams_job_path, atom_pairs, x_prop_list=plot_x_prop_list):
         highest_index_image + extra_images_num_adjacent_images
     )) if extra_images_num_adjacent_images > 0 and num_extra_images > 0 else []
     extra_image_job_names = []
+    
+    if xyz_trajectory_file_path:
+        xyz_data = xyz_trajectory_file_extract_images()
+        if num_images != len(xyz_data):
+            log_print(f"Warning: Number of images in XYZ trajectory file ({len(xyz_data)}) does not match number of NEB images ({num_images}). Ignoring XYZ data for now.")
+            return
+    else:
+        xyz_data = None
 
     for i in range(num_images):
         if i < start_image or (i > end_image and end_image > 0):
@@ -1985,13 +2299,29 @@ def main(ams_job_path, atom_pairs, x_prop_list=plot_x_prop_list):
             species_Z[atom_species_indices[j] - 1] for j in range(num_atoms)
         ]
         coords = kf[("NEB", f"im{i}.xyzAtoms")]
+    
         coords = [
             Units.convert(v, "bohr", "angstrom") for v in coords
         ]  # to convert to angstrom for comparison to coords shown in ADFMovie
 
         # coords is a 1D list of coordinates, so we need to reshape it to a 2D list
-        atom_coords = [tuple(coords[i: i + 3])
-                       for i in range(0, len(coords), 3)]
+        atom_coords = [tuple(coords[j: j + 3])
+                       for j in range(0, len(coords), 3)]
+        
+        if xyz_data:
+            atom_coords = xyz_data[i]['atom_coords']
+            atom_numbers = xyz_data[i]['atom_numbers']
+            atom_species = xyz_data[i]['atom_symbols']
+        
+        # print(atom_coords)
+        # print(atom_numbers)
+        # print(atom_species)
+        
+        # print("now for the xyz file test")
+        # xyz_test_data = xyz_trajectory_file_extract_images(path="/Users/twilson/Dev/AMSPython/ams_finished.xyz", i_start=0, i_end=0, initial_final_images_at_end=False)
+        # print(xyz_test_data)
+        
+        # return
 
         # create molecule for image
         im_mol = Molecule(positions=atom_coords, numbers=atom_numbers)
@@ -2013,8 +2343,11 @@ def main(ams_job_path, atom_pairs, x_prop_list=plot_x_prop_list):
 
             # coords is a 1D list of coordinates, so we need to reshape it to a 2D list
             ip1_atom_coords = [
-                tuple(ip1_coords[i: i + 3]) for i in range(0, len(ip1_coords), 3)
+                tuple(ip1_coords[j: j + 3]) for j in range(0, len(ip1_coords), 3)
             ]
+            if xyz_data:
+                ip1_atom_coords = xyz_data[ip1]['atom_coords']
+            
             ip1_mol = Molecule(positions=ip1_atom_coords, numbers=atom_numbers)
             # copy properties from the input job
             ip1_mol.properties = im_mol.properties.copy()
@@ -2142,7 +2475,8 @@ def process_results(jobs, atom_pairs, path, prop_list, x_prop_list, unrestricted
         #     args = [(job, os.path.dirname(path)) for job in jobs.children]
         #     list(executor.map(densf_func_wrapper, args))
         for job in jobs.children:
-            generate_full_t41(job, os.path.dirname(path))
+            if "noEEF" in job.name:
+                generate_full_t41(job, os.path.dirname(path))
 
 
 def test_post_processing_single_job(job_path, atom_pairs):
@@ -3225,6 +3559,7 @@ def statistical_analysis(
 
 
 if __name__ == "__main__":
+    os.environ["NSCM"] = f"{num_cores}"
     if csv_file_paths:
         log_print("Performing statistical analysis on provided CSV files...")
         cp_data = []

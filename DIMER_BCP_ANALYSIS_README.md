@@ -35,25 +35,39 @@ python ADF_dimer_bcp_analysis.py <input_directory> [options]
 | Argument | Short | Description | Default |
 |----------|-------|-------------|---------|
 | `input_dir` | — | Directory containing ADF calculation results | Required |
-| `--output` | `-o` | Output CSV file path | `./dimer_bcp_analysis.csv` |
-| `--output-dir` | `-d` | Directory for output files | Current directory |
+| `--output-dir` | `-d` | Directory for output files | Same as input_dir |
 | `--plots` | — | Generate visualization plots | False |
+| `--dual-axes` | — | Use separate y-axes for energy and ρTan (single y-axis by default) | False |
 
 ### Examples
 
-**Basic analysis:**
+**Basic analysis (outputs to input directory):**
 ```bash
 python ADF_dimer_bcp_analysis.py /path/to/adf/results
 ```
 
+**With plots (single y-axis, default):**
+```bash
+python ADF_dimer_bcp_analysis.py /path/to/adf/results --plots
+```
+
+**With plots and dual y-axes:**
+```bash
+python ADF_dimer_bcp_analysis.py /path/to/adf/results --plots --dual-axes
+```
+
 **With custom output location and plots:**
 ```bash
-python ADF_dimer_bcp_analysis.py /path/to/adf/results -o results.csv -d ./output --plots
+python ADF_dimer_bcp_analysis.py /path/to/adf/results -d ./output --plots
 ```
 
 ## Output
 
 ### CSV File
+
+The CSV filename is automatically derived from the input directory name:
+- **Format**: `{input_folder_name}_dimer_bcp_analysis.csv`
+- **Location**: Specified output directory (default: same as input directory)
 
 Contains the following columns:
 
@@ -73,13 +87,15 @@ Rows are sorted by separation distance (ascending).
 
 ### Plots
 
-When `--plots` is specified, two PNG files are generated:
+Generated only when `--plots` flag is specified. Filenames are derived from the input directory name:
 
-1. **`dimer_bcp_analysis_energy_vs_separation.png`**
-   - Dual-axis plot showing bond energy and ρTan vs separation distance
+1. **`{input_folder_name}_dimer_bcp_analysis_energy_vs_separation.png`**
+   - Shows bond energy and ρTan vs separation distance
+   - **Default (single y-axis)**: Both metrics plotted on the same y-axis for direct comparison
+   - **With `--dual-axes`**: Energy and ρTan use separate y-axes to show independent scales
    - Helps visualize bond stability and electron density trends
 
-2. **`dimer_bcp_analysis_eigenvalues_vs_separation.png`**
+2. **`{input_folder_name}_dimer_bcp_analysis_eigenvalues_vs_separation.png`**
    - Shows negative and positive eigenvalues vs separation
    - Illustrates Hessian curvature changes along the reaction coordinate
 
@@ -146,16 +162,19 @@ The tool automatically identifies the BCP using its critical point signature cod
 ## Example Workflow
 
 ```bash
-# Run analysis on NEB pathway
-python ADF_dimer_bcp_analysis.py ./plams_workdir/Cys_propane_NEB_p01 \
-    -o neb_analysis.csv \
-    -d ./results \
-    --plots
+# Run analysis on NEB pathway (outputs to same directory)
+python ADF_dimer_bcp_analysis.py ./plams_workdir/Cys_propane_NEB_p01 --plots
+
+# Results are saved to:
+# - ./plams_workdir/Cys_propane_NEB_p01/Cys_propane_NEB_p01_dimer_bcp_analysis.csv
+# - ./plams_workdir/Cys_propane_NEB_p01/Cys_propane_NEB_p01_dimer_bcp_analysis_energy_vs_separation.png
+# - ./plams_workdir/Cys_propane_NEB_p01/Cys_propane_NEB_p01_dimer_bcp_analysis_eigenvalues_vs_separation.png
 
 # View the CSV
-cat results/neb_analysis.csv
+cat ./plams_workdir/Cys_propane_NEB_p01/Cys_propane_NEB_p01_dimer_bcp_analysis.csv
 
-# Results contain structure-property relationships for the entire NEB path
+# Alternatively, save to a different location
+python ADF_dimer_bcp_analysis.py ./plams_workdir/Cys_propane_NEB_p01 -d ./results --plots
 ```
 
 ## References
