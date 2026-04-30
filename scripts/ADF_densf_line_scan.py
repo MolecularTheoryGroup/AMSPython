@@ -404,6 +404,127 @@ def run_line_scan(rkf_path: str,
 
 
 # ---------------------------------------------------------------------------
+# Plotting
+# ---------------------------------------------------------------------------
+
+# Human-readable axis labels for known column names.
+_COLUMN_LABELS: dict[str, str] = {
+    "density_scf":  r"$\rho_\mathrm{SCF}$ (a.u.)",
+    "density_frag": r"$\rho_\mathrm{frag}$ (a.u.)",
+    "density_ortho":r"$\rho_\mathrm{ortho}$ (a.u.)",
+    "kindens_scf":  r"$\tau_\mathrm{SCF}$ (a.u.)",
+    "kindens_frag": r"$\tau_\mathrm{frag}$ (a.u.)",
+    "laplacian_scf":r"$|\nabla^2\rho_\mathrm{SCF}|$ (a.u.)",
+    "dengrad_mag":  r"$|\nabla\rho|$ (a.u.)",
+}
+
+# Columns to plot as absolute value (always positive, use log scale).
+_ABS_COLS: frozenset[str] = frozenset({"laplacian_scf"})
+
+# Columns that can take negative values — use symlog instead of log scale.
+# (laplacian is excluded because it is plotted as |laplacian|.)
+_SIGNED_COLS: frozenset[str] = frozenset()
+
+
+def plot_line_scan_csv(csv_path: str,
+                       pdf_path: str | None = None,
+                       label_a: str = "A",
+                       label_b: str = "B") -> str:
+    """
+    Read a line-scan CSV produced by extract_line_scan_to_csv and save a grid
+    of subplots (one per variable column) as a PDF file.
+
+    Y-axes use log scale for positive-definite quantities and symlog for
+    quantities that can be negative (e.g. the Laplacian).
+
+    Args:
+        csv_path: Path to the CSV file.
+        pdf_path: Destination PDF path.  Defaults to the same stem as the CSV
+                  with a .pdf extension.
+        label_a: Label for the first atom endpoint (x-axis origin label).
+        label_b: Label for the second atom endpoint.
+
+    Returns:
+        Path to the written PDF file.
+    """
+    import math
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.backends.backend_pdf import PdfPages
+
+    if pdf_path is None:
+        pdf_path = str(Path(csv_path).with_suffix(".pdf"))
+
+    # Read CSV
+    arclength: list[float] = []
+    data: dict[str, list[float]] = {}
+    with open(csv_path, newline="") as fh:
+        reader = csv.DictReader(fh)
+        assert reader.fieldnames is not None
+        arc_col = "arclength_bohr"
+        var_cols = [c for c in reader.fieldnames
+                    if c not in ("point", "x_bohr", "y_bohr", "z_bohr", arc_col)]
+        for col in var_cols:
+            data[col] = []
+        for row in reader:
+            arclength.append(float(row[arc_col]))
+            for col in var_cols:
+                data[col].append(float(row[col]))
+
+    n_vars = len(var_cols)
+    n_cols = min(n_vars, 2)
+    n_rows = math.ceil(n_vars / n_cols)
+
+    fig, axes = plt.subplots(n_rows, n_cols,
+                             figsize=(5.5 * n_cols, 3.5 * n_rows),
+                             squeeze=False)
+    fig.suptitle(
+        f"Line scan: {label_a} → {label_b}",
+        fontsize=12, fontweight="bold", y=1.01
+    )
+
+    for idx, col in enumerate(var_cols):
+        ax = axes[idx // n_cols][idx % n_cols]
+        vals = data[col]
+
+        # Take absolute value for designated columns.
+        if col in _ABS_COLS:
+            vals = [abs(v) for v in vals]
+
+        # Choose scale: symlog for signed columns, log for positive-definite.
+        # Also fall back to symlog if the data itself contains negative values.
+        is_signed = col in _SIGNED_COLS or any(v < 0 for v in vals)
+        if is_signed:
+            # Symmetric log: linear region around zero, log elsewhere.
+            # linthresh = smallest |nonzero| value in the data.
+            nonzero = [abs(v) for v in vals if v != 0]
+            linthresh = min(nonzero) if nonzero else 1e-10
+            ax.set_yscale("symlog", linthresh=linthresh)
+            ax.axhline(0, color="grey", lw=0.5, ls="--")
+        else:
+            ax.set_yscale("log")
+
+        ax.plot(arclength, vals, lw=1.5, color=f"C{idx}")
+        ax.set_xlabel(f"Arclength ({label_a}→{label_b}) / Bohr", fontsize=9)
+        ax.set_ylabel(_COLUMN_LABELS.get(col, col), fontsize=9)
+        ax.set_title(_COLUMN_LABELS.get(col, col), fontsize=9)
+        ax.tick_params(labelsize=8)
+
+    # Hide any unused axes
+    for idx in range(n_vars, n_rows * n_cols):
+        axes[idx // n_cols][idx % n_cols].set_visible(False)
+
+    fig.tight_layout()
+    with PdfPages(pdf_path) as pdf:
+        pdf.savefig(fig, bbox_inches="tight")
+    plt.close(fig)
+
+    print(f"PDF written: {pdf_path}")
+    return pdf_path
+
+
+# ---------------------------------------------------------------------------
 # USER SETTINGS — edit these when running as a script
 # ---------------------------------------------------------------------------
 
@@ -432,7 +553,10 @@ if __name__ == "__main__":
     # Set to True to preview the densf input without running the calculation
     DRY_RUN = False
 
-    run_line_scan(
+    _label_a = str(ATOM_PAIR[0])
+    _label_b = str(ATOM_PAIR[1])
+
+    _, csv_out = run_line_scan(
         rkf_path=RKF_PATH,
         atom_pair=ATOM_PAIR,
         n_points=N_POINTS,
@@ -441,3 +565,6 @@ if __name__ == "__main__":
         csv_path=CSV_PATH,
         dry_run=DRY_RUN,
     )
+
+    if csv_out:
+        plot_line_scan_csv(csv_out, label_a=_label_a, label_b=_label_b)
