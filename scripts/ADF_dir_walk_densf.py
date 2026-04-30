@@ -73,10 +73,9 @@ def get_custom_grid_string(rkf_path, spacing=0.05, extend=4.2,
     # --- filter by atom_inds (1-based input order) ---
     if atom_inds:
         order_tokens = _run_amsreport(rkf_path, "Geometry%atom order index")
-        order_ints = [int(t) for t in order_tokens]  # length 2*N
-        input_order = order_ints[:n_atoms]
-        internal_order = order_ints[n_atoms:]
-        input_to_internal = dict(zip(input_order, internal_order))
+        order_ints = [int(t) for t in order_tokens]
+        # First N values: order_ints[i] = 1-based internal index for input atom (i+1)
+        input_to_internal = {i + 1: order_ints[i] for i in range(n_atoms)}
         selected_coords = [
             coords_internal[input_to_internal[inp] - 1]
             for inp in atom_inds

@@ -144,12 +144,13 @@ def _get_coords_by_input_index(rkf_path: str, atom_input_indices: list[int]) -> 
         for i in range(n_atoms)
     ]
 
-    # Build input-order -> internal-order mapping
+    # Build input-order -> internal-order mapping.
+    # Geometry%atom order index stores 2*N values; the first N values encode the
+    # permutation directly: order_ints[i] is the 1-based INTERNAL index for
+    # input atom (i+1).  The second N values are the inverse permutation.
     order_tokens = _run_amsreport(rkf_path, "Geometry%atom order index")
-    order_ints = [int(t) for t in order_tokens]  # length 2*N
-    input_order = order_ints[:n_atoms]
-    internal_order = order_ints[n_atoms:]
-    input_to_internal = dict(zip(input_order, internal_order))
+    order_ints = [int(t) for t in order_tokens]
+    input_to_internal = {i + 1: order_ints[i] for i in range(n_atoms)}
 
     result = []
     for idx in atom_input_indices:
@@ -530,20 +531,20 @@ def plot_line_scan_csv(csv_path: str,
 
 if __name__ == "__main__":
     # Path to the adf.rkf file
-    RKF_PATH = "/path/to/adf.rkf"
+    RKF_PATH = "/Users/haiiro/scratch/phenol-dimer_B3LYP_TZ2P_GO.results/adf.rkf"
 
     # Two atom references: 1-based input-order integers or label strings like "H21"
-    ATOM_PAIR = ("H21", "O7")
+    ATOM_PAIR = ("O7", "H21")
 
     # Number of grid points along the line (including both endpoints)
-    N_POINTS = 100
+    N_POINTS = 1000
 
     # densf property keywords to compute — one string per property
     VARIABLES = [
         "density scf",
         "density frag",
-        "Laplacian",
         "DenGrad",
+        "Laplacian",
     ]
 
     # Output paths — set to None for automatic naming

@@ -19,3 +19,5 @@ bcp_rotation_plots*
 *.csv
 
 .venv
+
+*.pyc
