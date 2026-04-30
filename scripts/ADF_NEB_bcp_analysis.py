@@ -59,7 +59,7 @@ import warnings  # To warn about potential issues
 # ]
 
 ams_job_paths = [
-    '/Users/twilson/scratch/CP_crossings/PhI-O-DMS_NEBs/PMe3-O-DMS_NEB2.ams'
+    '/Users/haiiro/Downloads/CP crossings/pyr-acetic_acid/NEB/py-H-ac_NEB.ams'
 ]
 
 xyz_trajectory_file_path = ''
@@ -97,7 +97,7 @@ csv_file_paths = [
 # You can control the starting and ending NEB image number to include in the analysis here.
 # 0 means the first image in the NEB, 1 means the second image, etc.
 start_image = 1
-end_image = -1  # -1 means the last image in the NEB
+end_image = 14  # -1 means the last image in the NEB
 
 # Define atom pairs (pairs of atom numbers with associated descriptions) for which to extract bond critical point information.
 # One list for each input file defined above
@@ -187,10 +187,14 @@ atom_pairs_list = (  # one-based indices, same as shown in AMSView
     #     (13,14): "Breaking bond",
     #     (1, 13): "Forming bond"
     # },
-    { # PMe3-O-DMS_NEB2_p01.ams
-        (1,10): "Breaking bond",
-        (10, 11): "Forming bond"
-    },
+    # { # PMe3-O-DMS_NEB2_p01.ams
+    #     (1,10): "Breaking bond",
+    #     (10, 11): "Forming bond"
+    # },
+    { # py-H-ac
+     (7, 8): "Breaking bond",  # OH
+     (8, 12): "Forming bond",  # NH
+     },
     # { # CP450 Heme Cys n01 v2 
     #     (45, 44): "Breaking bond",  # CH
     #     (44, 38): "Forming bond",  # OH
@@ -258,13 +262,14 @@ densf_bb_spacing = (
 # and the opposite and no-field case will be included.
 # THIS OVERRIDES THE EEF USED IN THE NEB CALCULATION.
 # Uncomment the following line to specify your own electric field, or leave it as None to use the NEB eef if present.
-user_eef = (0.0, 0.0, 0.01)
+user_eef = None #(0.0, 0.0, 0.01)
 # Need to convert electric field magnitude units. In the NEB rkf file, they're Ha/(e bohr), but in the
 # new jobs they need to be V/Angstrom. The conversion factor is 51.4220861908324.
 eef_conversion_factor = 51.4220861908324
 # Define the EEF pairs
-eef_pairs = [("origEEF", eef_conversion_factor), ("revEEF", -eef_conversion_factor), ("noEEF", 0)]
+# eef_pairs = [("origEEF", eef_conversion_factor), ("revEEF", -eef_conversion_factor), ("noEEF", 0)]
 # eef_pairs = [("origEEF", eef_conversion_factor)]
+eef_pairs = [("", eef_conversion_factor)]
 ##### end EEF Settings #####
 
 ##### Extra interpolated single point settings #####
@@ -320,13 +325,13 @@ combined_plots_y_prop_lists = {
 # For each x-axis property specified, a full set of plots will be generated for each y property.
 # (Add " (reverse)" to reverse the x-axis direction)
 plot_x_prop_list = [
-    "O13-S14 distance",
+    "O7-H8 distance",
     "NEB image",
 ]
 
 plot_x_prop_lists = [
     [
-        "S1-O10 distance",
+        "O7-H8 distance",
         "NEB image",
     ]
 ]
