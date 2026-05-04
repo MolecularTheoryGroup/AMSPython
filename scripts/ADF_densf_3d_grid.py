@@ -471,18 +471,18 @@ def plot_isosurfaces(
 
 if __name__ == "__main__":
     # Path to the adf.rkf file
-    RKF_PATH = "/path/to/adf.rkf"
+    RKF_PATH = "/Users/haiiro/scratch/phenol-dimer_B3LYP_TZ2P_GO.results/adf.rkf"
 
     # densf property keywords to compute
     VARIABLES = [
         "density scf",
         "density frag",
-        "Laplacian",
-        "DenGrad",
+        # "Laplacian",
+        # "DenGrad",
     ]
 
-    # Grid spacing in Bohr
-    SPACING = 0.2
+    # Grid spacing in Bohr (0.125$\AA$) = 0.125 / 0.529177210903 ≈ 0.236 Bohr
+    SPACING = 0.236
 
     # Bounding-box padding in Bohr
     EXTEND = 3.0

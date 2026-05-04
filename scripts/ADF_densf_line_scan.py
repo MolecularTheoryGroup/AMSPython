@@ -165,6 +165,77 @@ def _get_coords_by_input_index(rkf_path: str, atom_input_indices: list[int]) -> 
 
 
 # ---------------------------------------------------------------------------
+# Atom XYZ export
+# ---------------------------------------------------------------------------
+
+def write_atom_xyz(rkf_path: str, xyz_path: str) -> str:
+    """
+    Write a plain-text XYZ file containing index, element symbol, and
+    Cartesian coordinates (Angstrom) for every atom in the system.
+
+    Atoms are listed in 1-based input order (matching the original AMS input).
+
+    File format (space-separated)::
+
+        <N atoms>
+        index  symbol  x(Ang)  y(Ang)  z(Ang)  source=<rkf_path>
+        1  Fe    1.23456789   2.34567890   3.45678901
+        ...
+
+    Args:
+        rkf_path: Path to the adf.rkf file.
+        xyz_path: Destination .xyz file path.
+
+    Returns:
+        The path that was written.
+    """
+    rkf_path = str(Path(rkf_path).resolve())
+
+    # --- coordinates (Bohr → Angstrom, internal order) ---
+    xyz_tokens = _run_amsreport(rkf_path, "Geometry%xyz")
+    n_atoms = len(xyz_tokens) // 3
+    coords_internal_ang = [
+        (
+            float(xyz_tokens[3 * i])     * BOHR_TO_ANGSTROM,
+            float(xyz_tokens[3 * i + 1]) * BOHR_TO_ANGSTROM,
+            float(xyz_tokens[3 * i + 2]) * BOHR_TO_ANGSTROM,
+        )
+        for i in range(n_atoms)
+    ]
+
+    # --- element symbols (internal order) ---
+    atomtype_tokens = _run_amsreport(rkf_path, "Geometry%atomtype")
+    unique_elements = list(atomtype_tokens)
+    frag_tokens = _run_amsreport(rkf_path, "Geometry%fragment and atomtype index")
+    frag_ints = [int(t) for t in frag_tokens]  # length 2*N
+    atomtype_indices = frag_ints[n_atoms:]       # 1-based into unique_elements
+    symbols_internal = [
+        unique_elements[atomtype_indices[i] - 1] for i in range(n_atoms)
+    ]
+
+    # --- input-order → internal-order mapping ---
+    order_tokens = _run_amsreport(rkf_path, "Geometry%atom order index")
+    order_ints = [int(t) for t in order_tokens]
+    input_to_internal = {i + 1: order_ints[i] for i in range(n_atoms)}
+
+    # --- write file ---
+    with open(xyz_path, "w") as fh:
+        fh.write(f"{n_atoms}\n")
+        fh.write(f"{rkf_path}\n")
+        for inp in range(1, n_atoms + 1):
+            intn = input_to_internal[inp]
+            sym = symbols_internal[intn - 1]
+            x, y, z = coords_internal_ang[intn - 1]
+            fh.write(
+                f"{sym:<4s}  "
+                f"{x:14.8f}  {y:14.8f}  {z:14.8f}\n"
+            )
+
+    print(f"XYZ written: {xyz_path}")
+    return xyz_path
+
+
+# ---------------------------------------------------------------------------
 # Grid helpers
 # ---------------------------------------------------------------------------
 
@@ -300,7 +371,8 @@ def run_line_scan(rkf_path: str,
                   variables: list[str],
                   output_path: str | None = None,
                   csv_path: str | None = None,
-                  dry_run: bool = False) -> tuple[str, str | None]:
+                  xyz_path: str | None = None,
+                  dry_run: bool = False) -> tuple[str, str | None, str | None]:
     """
     Run densf along a straight line between two atoms using an inline grid,
     then extract the computed values and save them to a CSV file.
@@ -316,11 +388,14 @@ def run_line_scan(rkf_path: str,
                      <output_dir>/<job>_line_<labelA>_<labelB>_N<n>.t41.
         csv_path: Path for the output CSV file.  Defaults to the same stem as
                   the t41 with a .csv extension.
+        xyz_path: Path for the output .xyz atom file.  Defaults to
+                  <output_dir>/<job>_atoms.xyz.
         dry_run: If True, print the densf input but do not execute densf or
-                 write the CSV.
+                 write the CSV or XYZ.
 
     Returns:
-        (t41_path, csv_path) — csv_path is None when dry_run=True.
+        (t41_path, csv_path, xyz_path) — csv_path and xyz_path are None when
+        dry_run=True.
     """
     rkf_path = str(Path(rkf_path).resolve())
 
@@ -338,6 +413,8 @@ def run_line_scan(rkf_path: str,
         output_path = str(output_dir / f"{stem}.t41")
     if csv_path is None:
         csv_path = str(output_dir / f"{stem}.csv")
+    if xyz_path is None:
+        xyz_path = str(output_dir / f"{job_name}_atoms.xyz")
 
     # Get atom coordinates (Angstrom)
     coords = _get_coords_by_input_index(rkf_path, [idx_a, idx_b])
@@ -370,7 +447,7 @@ def run_line_scan(rkf_path: str,
 
     if dry_run:
         print("Dry run — densf not executed.")
-        return output_path, None
+        return output_path, None, None
 
     if os.path.exists(output_path):
         print(f"Output t41 already exists, overwriting: {output_path}")
@@ -401,7 +478,11 @@ def run_line_scan(rkf_path: str,
         label_b=label_b,
     )
 
-    return output_path, csv_path
+    # Write atom XYZ file
+    print("\nWriting atom XYZ file...")
+    write_atom_xyz(rkf_path=rkf_path, xyz_path=xyz_path)
+
+    return output_path, csv_path, xyz_path
 
 
 # ---------------------------------------------------------------------------
@@ -557,7 +638,7 @@ if __name__ == "__main__":
     _label_a = str(ATOM_PAIR[0])
     _label_b = str(ATOM_PAIR[1])
 
-    _, csv_out = run_line_scan(
+    _, csv_out, _xyz_out = run_line_scan(
         rkf_path=RKF_PATH,
         atom_pair=ATOM_PAIR,
         n_points=N_POINTS,
