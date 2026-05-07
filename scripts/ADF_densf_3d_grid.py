@@ -476,7 +476,7 @@ if __name__ == "__main__":
     # densf property keywords to compute
     VARIABLES = [
         "density scf",
-        "density frag",
+        # "density frag",
         # "Laplacian",
         # "DenGrad",
     ]
