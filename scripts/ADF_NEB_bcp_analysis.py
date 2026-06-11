@@ -59,7 +59,7 @@ import warnings  # To warn about potential issues
 # ]
 
 ams_job_paths = [
-    '/Users/haiiro/Downloads/CP crossings/pyr-acetic_acid/NEB/py-H-ac_NEB.ams'
+    '/Users/twilson/scratch/CP_crossings/Cys/NF/Cys_propane_NEB_NF.ams'
 ]
 
 xyz_trajectory_file_path = ''
@@ -83,9 +83,9 @@ xyz_trajectory_file_initial_final_images_at_end = True
 #     '/Users/haiiro/NoSync/2025_AMSPythonData/CP450_Heme_NEBs/his/plams_workdir.002/His_propane_near_TS/His_propane_near_TS.dill',
 # ]
 restart_dill_paths = [
-    # '/Users/twilson/scratch/CP_crossings/PhI-O-DMS_NEBs/plams_workdir.007/PMe3-O-DMS_NEB2_p01/PMe3-O-DMS_NEB2_p01.dill'
+    "/Users/twilson/scratch/CP_crossings/Cys/NF/eef_on_NEB_coords/plams_workdir/Cys_propane_NEB_NF/Cys_propane_NEB_NF.dill"
 ]
-unrestricted_calculation = False  
+unrestricted_calculation = True  
 
 # Define paths to previously created cp data CSV files in order to do statistical analysis.
 csv_file_paths = [
@@ -96,8 +96,8 @@ csv_file_paths = [
 
 # You can control the starting and ending NEB image number to include in the analysis here.
 # 0 means the first image in the NEB, 1 means the second image, etc.
-start_image = 1
-end_image = 14  # -1 means the last image in the NEB
+start_image = 0
+end_image = -1  # -1 means the last image in the NEB
 
 # Define atom pairs (pairs of atom numbers with associated descriptions) for which to extract bond critical point information.
 # One list for each input file defined above
@@ -133,16 +133,16 @@ atom_pairs_list = (  # one-based indices, same as shown in AMSView
     #     (1, 4): "",  # FeN
     #     (1, 5): "",  # FeN
     # },
-    # { # CP450 Heme Cys NF v2 
-    #     (44, 46): "Breaking bond",  # CH
-    #     (46, 38): "Forming bond",  # OH
-    #     (1, 38): "",  # FeO
-    #     (1, 43): "Fe-Ligand",  # Fe-amino acid Cys
-    #     (1, 2): "",  # FeN
-    #     (1, 3): "",  # FeN
-    #     (1, 4): "",  # FeN
-    #     (1, 5): "",  # FeN
-    # },
+    { # CP450 Heme Cys NF v2 
+        (44, 46): "Breaking bond",  # CH
+        (46, 38): "Forming bond",  # OH
+        (1, 38): "",  # FeO
+        (1, 43): "Fe-Ligand",  # Fe-amino acid Cys
+        (1, 2): "",  # FeN
+        (1, 3): "",  # FeN
+        (1, 4): "",  # FeN
+        (1, 5): "",  # FeN
+    },
     # { # CP450 Heme His NF v2 
     #     (78, 77): "Breaking bond",  # CH
     #     (77, 38): "Forming bond",  # OH
@@ -191,10 +191,6 @@ atom_pairs_list = (  # one-based indices, same as shown in AMSView
     #     (1,10): "Breaking bond",
     #     (10, 11): "Forming bond"
     # },
-    { # py-H-ac
-     (7, 8): "Breaking bond",  # OH
-     (8, 12): "Forming bond",  # NH
-     },
     # { # CP450 Heme Cys n01 v2 
     #     (45, 44): "Breaking bond",  # CH
     #     (44, 38): "Forming bond",  # OH
@@ -246,11 +242,12 @@ atom_pair_for_bond_distance_printout = None #(46, 38)
 # Configure the full grid settings below.
 # If no full grid is desired, leave densf_bb_atom_numbers as an empty list.
 # densf_bb_atom_numbers = [1,2,3,4,5,40,53,56,54] # list of atom numbers (1-based) to use for bounding box definition
-densf_bb_atom_numbers = [] # list of atom numbers (1-based) to use for bounding box definition
+densf_bb_atom_numbers = [1,2,3,4,5,43,44] # list of atom numbers (1-based) to use for bounding box definition
 densf_bb_padding = 5.0  # Angstroms
 densf_bb_spacing = (
     0.05  # Angstroms (densf "fine" is 0.05, "medium" is 0.1, "coarse" is 0.2)
 )
+densf_save_full_grid_xyz = False # Whether to save xyz coordinates alongside density grid. (Not necessary if using Bondalyzer on the resulting t41)
 ##### end densf full grid settings #####
 
 ##### EEF Settings #####
@@ -280,7 +277,7 @@ num_extra_images = 3
 # This then determines how many images to the left/right of the TS image to create. `num_extra_images` images will be created between each adjacent pair of images.
 # So "1" will result in `num_extra_images` images being added only between the TS image and its adjacent images,
 # while "3" will add `num_extra_images` between each image pair starting 3 images before the TS, etc.
-extra_images_num_adjacent_images = 0
+extra_images_num_adjacent_images = 3
 # Set `num_extra_images` to 0 to disable this feature.
 ##### end Extra interpolated single point settings #####
 
@@ -325,13 +322,13 @@ combined_plots_y_prop_lists = {
 # For each x-axis property specified, a full set of plots will be generated for each y property.
 # (Add " (reverse)" to reverse the x-axis direction)
 plot_x_prop_list = [
-    "O7-H8 distance",
+    "H46-O38 distance (reverse)",
     "NEB image",
 ]
 
 plot_x_prop_lists = [
     [
-        "O7-H8 distance",
+        "H46-O38 distance (reverse)",
         "NEB image",
     ]
 ]
@@ -398,7 +395,7 @@ reduced_csv_rename_key_map = {
 num_check_points_total = num_check_points**3
 
 # Get the number of CPU cores
-num_cores = 8 #ceil(os.cpu_count() / 2)
+num_cores = 28 #ceil(os.cpu_count() / 2)
 
 ########################################################################################
 # Step 0: define helper functions
@@ -1223,7 +1220,18 @@ def get_bcp_properties(job, atom_pairs_dict, unrestricted=False):
         if os.path.exists(out_file):
             log_print(f"Found existing densf output file at {out_file}")
             densf_kf = KFFile(out_file)
-            vals = densf_kf[("x values", f"x values")]
+            try:
+                vals = densf_kf[("SCF", "Density")]
+            except KeyError:
+                try:
+                    vals = densf_kf[("SCF", "Density_A")]
+                except KeyError:
+                    try:
+                        vals = densf_kf[("SCF", "Density_B")]
+                    except KeyError:
+                        raise KeyError(
+                            f"Could not find Density, Density_A, or Density_B in densf output file {out_file}"
+                        )
             if len(vals) == num_check_points_total * len(cp_indices):
                 log_print(f"Skipping densf run for {job.name} CPs")
             else:
@@ -1379,7 +1387,18 @@ def generate_full_t41(job, output_dir):
     densf_kf = None
     if os.path.exists(outfile):
         densf_kf = KFFile(outfile)
-        vals = densf_kf[("x values", f"x values")]
+        try:
+            vals = densf_kf[("SCF", "Density")]
+        except KeyError:
+            try:
+                vals = densf_kf[("SCF", "Density_A")]
+            except KeyError:
+                try:
+                    vals = densf_kf[("SCF", "Density_B")]
+                except KeyError:
+                    raise KeyError(
+                        f"Could not find Density, Density_A, or Density_B in densf output file {outfile}"
+                    )
         if len(vals) == total_num_points:
             log_print(f"Skipping densf run for {job.name} full density")
         else:
@@ -1400,7 +1419,8 @@ def generate_full_t41(job, output_dir):
         #     [v2x v2y v2z length2]
         #     [v3x v3y v3z length3]
         # END
-        grid_str = f"""Grid Save
+        save_str = " Save" if densf_save_full_grid_xyz else ""
+        grid_str = f"""Grid{save_str}
     {min_xyz[0]:.6f} {min_xyz[1]:.6f} {min_xyz[2]:.6f}
     {num_points[0]} {num_points[1]} {num_points[2]}
     {densf_bb_spacing:.6f} 0.0 0.0 {spacing * num_points[0]:.6f}
